@@ -234,11 +234,15 @@ const observer = new ResizeObserver(() => {
 });
 observer.observe(map);
 
-state.apiBase = await resolveApiBase();
-await load();
-setInterval(() => {
-  if (document.visibilityState === "visible") load();
-}, REFRESH_MS);
-document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") load();
-});
+async function start() {
+  state.apiBase = await resolveApiBase();
+  await load();
+  setInterval(() => {
+    if (document.visibilityState === "visible") load();
+  }, REFRESH_MS);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") load();
+  });
+}
+
+start();

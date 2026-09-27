@@ -102,17 +102,32 @@ function applySearch() {
   empty.hidden = !(query && hits === 0);
 }
 
+function portfolioReturn(stocks) {
+  const rows = [];
+  for (const stock of stocks) {
+    if (stock.changePercent == null || !stock.weight) continue;
+    const ratio = 1 + stock.changePercent / 100;
+    if (ratio <= 0) continue;
+    rows.push({ weight: stock.weight, ratio });
+  }
+  const weightTotal = rows.reduce((sum, row) => sum + row.weight, 0);
+  if (!weightTotal) return null;
+  const denominator = rows.reduce((sum, row) => sum + row.weight / weightTotal / row.ratio, 0);
+  return denominator > 0 ? (1 / denominator - 1) * 100 : null;
+}
+
 function paintHeader() {
   const data = state.data;
   if (!data) return;
   const stocks = visibleStocks().filter((stock) => stock.changePercent != null && stock.weight);
-  const weightTotal = stocks.reduce((sum, stock) => sum + stock.weight, 0);
-  const move = weightTotal
-    ? stocks.reduce((sum, stock) => sum + stock.weight * stock.changePercent, 0) / weightTotal
-    : data.weightedChange;
+  const benchmarkMove = state.sector === "all" ? data.benchmark?.periods?.[state.period]?.changePercent : null;
+  const move = benchmarkMove != null ? benchmarkMove : portfolioReturn(stocks) ?? data.weightedChange;
   heroValue.textContent = formatPercent(move);
   heroValue.className = move == null ? "" : move > 0.005 ? "up" : move < -0.005 ? "down" : "flat";
-  heroValue.title = "Each stock's index weight multiplied by its percent change, then added up.";
+  heroValue.title =
+    state.sector === "all"
+      ? "SPY's price change over this window. SPY tracks the S&P 500."
+      : "Price change for this sector, holding each company at its current share count.";
   document.querySelector("#hero-label").textContent = PERIOD_LABEL[state.period] ?? "Past day";
   const scale = lookback()?.scale ?? 3;
   document.querySelector("#legend-min").textContent = `−${scale}%`;
@@ -127,7 +142,9 @@ function paintHeader() {
   status.innerHTML = `<span class="badge badge-${(data.marketStatus || "unknown").toLowerCase()}">${badge}</span><span class="clock">${data.quoteTime ? `Quotes ${data.quoteTime}` : ""}${data.stale ? " · last good snapshot" : ""}<br>Refreshed ${formatClock(data.asOf)}</span>`;
   brandNote.textContent = `${data.stockCount} stocks`;
   const weightNote = data.weightsAsOf ? ` SPY weights as of ${data.weightsAsOf}.` : "";
-  disclaimer.textContent = `${data.sizing}${weightNote} ${lookback()?.comparison || data.comparison}`;
+  const headlineNote =
+    state.sector === "all" ? " The headline is SPY's price change over that same window." : "";
+  disclaimer.textContent = `${data.sizing}${weightNote} ${lookback()?.comparison || data.comparison}${headlineNote}`;
 }
 
 function fillSectors() {

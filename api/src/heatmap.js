@@ -5,6 +5,7 @@ import { round } from "./util.js";
 import { loadWeights } from "./weights.js";
 
 const QUOTE_TTL_MS = 15_000;
+const BENCHMARK = "SPY";
 let cache = { at: 0, body: null };
 let pending = null;
 
@@ -43,14 +44,13 @@ export async function buildHeatmap() {
   const symbols = constituents.map((stock) => stock.symbol);
   const [weightBook, history, quotes] = await Promise.all([
     loadWeights(),
-    loadHistory(symbols),
-    fetchQuotes(symbols),
+    loadHistory([...symbols, BENCHMARK]),
+    fetchQuotes([...symbols, BENCHMARK]),
   ]);
 
-  const stocks = constituents.map((stock) => {
-    const quote = quotes.get(stock.symbol);
-    const past = history.get(stock.symbol);
-    const weight = weightBook.weights.get(stock.symbol) ?? null;
+  function periodsFor(symbol) {
+    const quote = quotes.get(symbol);
+    const past = history.get(symbol);
     const periods = {
       day: moveFrom(quote?.price, quote?.previousClose, past?.previousSession),
     };
@@ -59,6 +59,13 @@ export async function buildHeatmap() {
       const reference = past?.[lookback.id];
       periods[lookback.id] = moveFrom(quote?.price, reference?.close, reference?.date);
     }
+    return periods;
+  }
+
+  const stocks = constituents.map((stock) => {
+    const quote = quotes.get(stock.symbol);
+    const weight = weightBook.weights.get(stock.symbol) ?? null;
+    const periods = periodsFor(stock.symbol);
     return {
       symbol: stock.symbol,
       name: stock.name,
@@ -78,11 +85,12 @@ export async function buildHeatmap() {
 
   stocks.sort((a, b) => (b.weight ?? 0) - (a.weight ?? 0));
   const quoted = stocks.filter((stock) => stock.changePercent != null);
-  const weighted = quoted.filter((stock) => stock.weight != null);
-  const weightTotal = weighted.reduce((sum, stock) => sum + stock.weight, 0);
-  const weightedChange = weightTotal
-    ? weighted.reduce((sum, stock) => sum + stock.weight * stock.changePercent, 0) / weightTotal
-    : null;
+  const benchmark = {
+    symbol: BENCHMARK,
+    price: quotes.get(BENCHMARK)?.price ?? null,
+    periods: periodsFor(BENCHMARK),
+  };
+  const weightedChange = benchmark.periods.day.changePercent;
 
   const quoteList = [...quotes.values()];
 
@@ -95,6 +103,7 @@ export async function buildHeatmap() {
     weightsAsOf: weightBook.asOf,
     weightsSource: weightBook.source,
     weightedChange,
+    benchmark,
     stockCount: stocks.length,
     quotedCount: quoted.length,
     comparison: LOOKBACKS[0].comparison,

@@ -75,6 +75,17 @@ function addMonths(ms, months) {
   return date.getTime();
 }
 
+function marketTodayMs() {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const value = (type) => Number(parts.find((part) => part.type === type)?.value);
+  return Date.UTC(value("year"), value("month") - 1, value("day"));
+}
+
 function referenceBar(bars, targetMs) {
   const last = bars.at(-1);
   if (!last) return null;
@@ -108,13 +119,13 @@ async function fetchBars(symbol) {
 }
 
 function closesFor(bars) {
-  const last = bars.at(-1);
+  const today = marketTodayMs();
   const closes = {};
   for (const lookback of LOOKBACKS) {
     if (lookback.id === "day") continue;
     const target = lookback.months
-      ? addMonths(last.time, -lookback.months)
-      : last.time - lookback.days * 24 * 60 * 60 * 1000;
+      ? addMonths(today, -lookback.months)
+      : today - lookback.days * 24 * 60 * 60 * 1000;
     const bar = referenceBar(bars, target);
     closes[lookback.id] = bar ? { close: bar.close, date: isoDate(bar.time) } : null;
   }

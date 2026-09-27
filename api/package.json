@@ -1,0 +1,16 @@
+{
+  "name": "sp500-heatmap-api",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^5.2.5",
+    "jszip": "^3.10.1"
+  }
+}

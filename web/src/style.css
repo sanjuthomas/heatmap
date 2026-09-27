@@ -1,0 +1,284 @@
+:root {
+  color-scheme: dark;
+  --bg: #090b0e;
+  --panel: #101318;
+  --line: #232833;
+  --text: #e8ebf0;
+  --muted: #8d96a3;
+  --up: #3dde8a;
+  --down: #ff6b6b;
+  font-family: "IBM Plex Sans", sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+}
+
+body {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 100%;
+}
+
+header {
+  display: grid;
+  grid-template-columns: 180px auto minmax(180px, 1fr) auto;
+  grid-template-areas:
+    "brand hero counts status"
+    "controls controls legend legend"
+    "note note note note";
+  gap: 8px 20px;
+  align-items: center;
+  padding: 14px 18px 10px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+
+.brand { grid-area: brand; }
+.brand h1 {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: -0.03em;
+  font-weight: 600;
+}
+.brand p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.hero { grid-area: hero; display: flex; flex-direction: column; }
+.hero-label {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+#hero-value {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+#hero-value.up { color: var(--up); }
+#hero-value.down { color: var(--down); }
+#hero-value.flat { color: var(--text); }
+
+.counts {
+  grid-area: counts;
+  display: flex;
+  gap: 14px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+}
+.counts .up { color: var(--up); }
+.counts .down { color: var(--down); }
+
+.status {
+  grid-area: status;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-end;
+}
+.badge {
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #1c222c;
+  color: var(--text);
+}
+.badge-regular { background: #123524; color: #8ef0b8; }
+.badge-pre_mkt, .badge-post_mkt { background: #3a2e14; color: #f6d48a; }
+.clock {
+  color: var(--muted);
+  font-size: 12px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+}
+
+.controls {
+  grid-area: controls;
+  display: flex;
+  gap: 8px;
+}
+input, select, button {
+  font: inherit;
+  color: var(--text);
+  background: #171c23;
+  border: 1px solid #2c3441;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+input { width: min(320px, 46vw); }
+button { cursor: pointer; }
+button:hover { background: #212833; }
+input:focus, select:focus, button:focus {
+  outline: 2px solid #6ea8fe;
+  outline-offset: 1px;
+}
+
+.legend {
+  grid-area: legend;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.legend-bar {
+  width: 148px;
+  height: 8px;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #7f1d1d, #dc2626, #373e48, #168c46, #064e2e);
+}
+
+.disclaimer {
+  grid-area: note;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+#map {
+  position: relative;
+  min-height: 0;
+}
+#heatmap {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.sector-label {
+  fill: rgba(255, 255, 255, 0.72);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  font-family: "IBM Plex Sans", sans-serif;
+  pointer-events: none;
+}
+.tile { cursor: pointer; }
+.tile-symbol, .tile-change {
+  fill: #f8fafc;
+  text-anchor: middle;
+  pointer-events: none;
+  font-family: "IBM Plex Sans Condensed", "IBM Plex Sans", sans-serif;
+  font-weight: 600;
+}
+.tile-change {
+  font-family: "IBM Plex Sans", sans-serif;
+  font-weight: 500;
+  fill: rgba(255, 255, 255, 0.92);
+}
+#heatmap[data-filtering="true"] .tile[data-match="0"] { opacity: 0.18; }
+#heatmap[data-filtering="true"] .tile[data-match="1"] { stroke: #fff; stroke-width: 1.5; }
+
+.search-empty {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #161b22;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+.search-empty[hidden] { display: none; }
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(9, 11, 14, 0.82);
+  color: var(--muted);
+  text-align: center;
+}
+.overlay[hidden] { display: none; }
+.overlay.setup { background: rgba(9, 11, 14, 0.94); }
+#setup {
+  width: min(440px, 100%);
+  text-align: left;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 18px;
+}
+#setup h2 { margin: 0 0 8px; font-size: 18px; color: var(--text); }
+#setup p { margin: 0 0 14px; line-height: 1.45; }
+#setup label { display: grid; gap: 6px; font-size: 13px; color: var(--text); }
+#setup input { width: 100%; margin-bottom: 12px; }
+#setup button { background: #e8ebf0; color: #111; border: 0; font-weight: 600; }
+
+.tooltip {
+  position: fixed;
+  z-index: 5;
+  width: 260px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #161b22;
+  border: 1px solid #2d3542;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+.tooltip[hidden] { display: none; }
+.tooltip p { margin: 0; }
+.tip-symbol {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 600;
+  font-size: 16px;
+}
+.tip-symbol.up span { color: var(--up); }
+.tip-symbol.down span { color: var(--down); }
+.tip-name { margin-top: 2px !important; }
+.tip-meta, .tip-extra { color: var(--muted); font-size: 12px; margin-top: 4px !important; }
+.tip-price {
+  margin-top: 8px !important;
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+@media (max-width: 860px) {
+  header {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "brand status"
+      "hero counts"
+      "controls controls"
+      "legend legend"
+      "note note";
+    gap: 8px 12px;
+    padding: 12px 12px 8px;
+  }
+  .status {
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: flex-start;
+    gap: 2px;
+  }
+  .clock { font-size: 11px; }
+  .hero, .counts { align-self: end; }
+  .counts { flex-direction: column; align-items: flex-start; gap: 2px; font-size: 13px; }
+  .counts span { white-space: nowrap; }
+  .controls { flex-wrap: wrap; }
+  input { width: 100%; }
+  select { flex: 1; }
+  .legend { justify-content: flex-start; }
+}

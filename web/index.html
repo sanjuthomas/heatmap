@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>S&amp;P 500 Heatmap</title>
+    <meta
+      name="description"
+      content="S&P 500 heatmap. Each stock is sized by its index weight and colored by its change versus the previous close."
+    />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <header>
+      <div class="brand">
+        <h1>S&amp;P 500</h1>
+        <p id="brand-note">Heatmap</p>
+      </div>
+      <div class="hero" id="hero">
+        <span class="hero-label">Weight-adjusted move</span>
+        <strong id="hero-value">—</strong>
+      </div>
+      <div class="counts" id="counts"></div>
+      <div class="status" id="status"></div>
+      <div class="controls">
+        <input id="search" type="search" placeholder="Search ticker or company" autocomplete="off" />
+        <select id="sector" aria-label="Sector">
+          <option value="all">All sectors</option>
+        </select>
+        <button id="refresh" type="button">Refresh</button>
+      </div>
+      <div class="legend" aria-hidden="true">
+        <span>−3%</span>
+        <div class="legend-bar"></div>
+        <span>+3%</span>
+      </div>
+      <p class="disclaimer" id="disclaimer">
+        Box size is index weight. Color is the latest price versus the previous close.
+      </p>
+    </header>
+    <main id="map">
+      <svg id="heatmap"></svg>
+      <div id="overlay" class="overlay">Loading the S&amp;P 500…</div>
+      <p id="search-empty" class="search-empty" hidden>No matching stocks.</p>
+    </main>
+    <div id="tooltip" class="tooltip" hidden></div>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

@@ -110,7 +110,27 @@ header {
   grid-area: controls;
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
+.periods {
+  display: inline-flex;
+  border: 1px solid #2c3441;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.periods button {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 8px 12px;
+}
+.periods button + button { border-left: 1px solid #2c3441; }
+.periods button[aria-pressed="true"] {
+  background: #e8ebf0;
+  color: #111;
+}
+.periods button:hover { background: #212833; }
+.periods button[aria-pressed="true"]:hover { background: #e8ebf0; }
 input, select, button {
   font: inherit;
   color: var(--text);
@@ -278,6 +298,8 @@ input:focus, select:focus, button:focus {
   .counts { flex-direction: column; align-items: flex-start; gap: 2px; font-size: 13px; }
   .counts span { white-space: nowrap; }
   .controls { flex-wrap: wrap; }
+  .periods { width: 100%; }
+  .periods button { flex: 1; padding: 8px 4px; }
   input { width: 100%; }
   select { flex: 1; }
   .legend { justify-content: flex-start; }

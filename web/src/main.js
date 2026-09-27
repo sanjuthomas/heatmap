@@ -1,5 +1,5 @@
 import { renderHeatmap } from "./heatmap.js";
-import { formatClock, formatPercent, formatPrice, formatWeight, statusLabel } from "./format.js";
+import { formatClock, formatDate, formatPercent, formatPrice, formatWeight, statusLabel } from "./format.js";
 
 const STORAGE_KEY = "heatmap.apiBase";
 const REFRESH_MS = 20_000;
@@ -15,10 +15,19 @@ const status = document.querySelector("#status");
 const disclaimer = document.querySelector("#disclaimer");
 const brandNote = document.querySelector("#brand-note");
 
+const PERIOD_LABEL = {
+  day: "Past day",
+  week: "Past week",
+  month: "Past month",
+  quarter: "Past quarter",
+  year: "Past year",
+};
+
 const state = {
   data: null,
   query: "",
   sector: "all",
+  period: "day",
   error: "",
   loading: true,
   apiBase: "",
@@ -48,8 +57,27 @@ async function resolveApiBase() {
   return "";
 }
 
+function lookback() {
+  return state.data?.lookbacks?.find((item) => item.id === state.period) ?? null;
+}
+
+function presented(stock) {
+  const period = stock.periods?.[state.period];
+  if (!period) {
+    if (state.period === "day") return stock;
+    return { ...stock, change: null, changePercent: null, referenceClose: null, referenceDate: null };
+  }
+  return {
+    ...stock,
+    change: period.change,
+    changePercent: period.changePercent,
+    referenceClose: period.close,
+    referenceDate: period.date,
+  };
+}
+
 function visibleStocks() {
-  const stocks = state.data?.stocks ?? [];
+  const stocks = (state.data?.stocks ?? []).map(presented);
   if (state.sector === "all") return stocks;
   return stocks.filter((stock) => stock.sector === state.sector);
 }
@@ -85,6 +113,10 @@ function paintHeader() {
   heroValue.textContent = formatPercent(move);
   heroValue.className = move == null ? "" : move > 0.005 ? "up" : move < -0.005 ? "down" : "flat";
   heroValue.title = "Each stock's index weight multiplied by its percent change, then added up.";
+  document.querySelector("#hero-label").textContent = PERIOD_LABEL[state.period] ?? "Past day";
+  const scale = lookback()?.scale ?? 3;
+  document.querySelector("#legend-min").textContent = `−${scale}%`;
+  document.querySelector("#legend-max").textContent = `+${scale}%`;
 
   const up = stocks.filter((stock) => stock.changePercent > 0.005).length;
   const down = stocks.filter((stock) => stock.changePercent < -0.005).length;
@@ -95,7 +127,7 @@ function paintHeader() {
   status.innerHTML = `<span class="badge badge-${(data.marketStatus || "unknown").toLowerCase()}">${badge}</span><span class="clock">${data.quoteTime ? `Quotes ${data.quoteTime}` : ""}${data.stale ? " · last good snapshot" : ""}<br>Refreshed ${formatClock(data.asOf)}</span>`;
   brandNote.textContent = `${data.stockCount} stocks`;
   const weightNote = data.weightsAsOf ? ` SPY weights as of ${data.weightsAsOf}.` : "";
-  disclaimer.textContent = `${data.sizing}${weightNote} ${data.comparison}`;
+  disclaimer.textContent = `${data.sizing}${weightNote} ${lookback()?.comparison || data.comparison}`;
 }
 
 function fillSectors() {
@@ -115,7 +147,7 @@ function rememberStocks(stocks) {
 function draw() {
   const stocks = visibleStocks();
   rememberStocks(stocks);
-  renderHeatmap(svg, stocks);
+  renderHeatmap(svg, stocks, { scale: lookback()?.scale ?? 3 });
   applySearch();
   paintHeader();
 }
@@ -174,15 +206,18 @@ async function load() {
 function showTooltip(stock, x, y) {
   const direction = stock.changePercent > 0 ? "up" : stock.changePercent < 0 ? "down" : "flat";
   const afterHours =
-    stock.extendedChangePercent != null
+    state.period === "day" && stock.extendedChangePercent != null
       ? `<p class="tip-extra">After the close: ${formatPercent(stock.extendedChangePercent)} from ${formatPrice(stock.regularPrice)}</p>`
       : "";
+  const referenceName = state.period === "day" ? "Previous close" : `${PERIOD_LABEL[state.period]} close`;
+  const referenceDate = stock.referenceDate ? ` on ${formatDate(stock.referenceDate)}` : "";
+  const referencePrice = state.period === "day" ? stock.previousClose : stock.referenceClose;
   tooltip.hidden = false;
   tooltip.innerHTML = `<p class="tip-symbol ${direction}">${stock.symbol} <span>${formatPercent(stock.changePercent)}</span></p>
     <p class="tip-name">${stock.name}</p>
     <p class="tip-meta">${stock.sector}${stock.subIndustry ? ` · ${stock.subIndustry}` : ""}</p>
     <p class="tip-price">${formatPrice(stock.price)}</p>
-    <p class="tip-extra">Previous close ${formatPrice(stock.previousClose)}</p>
+    <p class="tip-extra">${referenceName} ${formatPrice(referencePrice)}${referenceDate}</p>
     ${afterHours}
     <p class="tip-extra">Index weight ${formatWeight(stock.weight)}</p>`;
   const rect = tooltip.getBoundingClientRect();
@@ -227,6 +262,17 @@ sectorSelect.addEventListener("change", () => {
 });
 
 document.querySelector("#refresh").addEventListener("click", () => load());
+
+document.querySelectorAll(".periods button").forEach((button) => {
+  button.addEventListener("click", () => {
+    state.period = button.dataset.period;
+    for (const item of document.querySelectorAll(".periods button")) {
+      item.setAttribute("aria-pressed", item === button ? "true" : "false");
+    }
+    hideTooltip();
+    if (state.data) draw();
+  });
+});
 
 const map = document.querySelector("#map");
 const observer = new ResizeObserver(() => {

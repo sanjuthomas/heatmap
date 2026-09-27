@@ -4,6 +4,25 @@ export function formatPercent(value) {
   return `${sign}${value.toFixed(2)}%`;
 }
 
+export function formatTilePercent(value) {
+  if (value == null || Number.isNaN(value)) return "—";
+  const digits = Math.abs(value) >= 100 ? 0 : Math.abs(value) >= 10 ? 1 : 2;
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${value.toFixed(digits)}%`;
+}
+
+export function formatDate(iso) {
+  if (!iso) return "";
+  const [year, month, day] = iso.split("-").map(Number);
+  if (!year || !month || !day) return iso;
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "UTC",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(Date.UTC(year, month - 1, day)));
+}
+
 export function formatPrice(value) {
   if (value == null || Number.isNaN(value)) return "—";
   return value.toLocaleString("en-US", {

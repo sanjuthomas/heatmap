@@ -1,5 +1,7 @@
 import { loadConstituents } from "./constituents.js";
+import { LOOKBACKS, loadHistory } from "./history.js";
 import { fetchQuotes } from "./quotes.js";
+import { round } from "./util.js";
 import { loadWeights } from "./weights.js";
 
 const QUOTE_TTL_MS = 15_000;
@@ -23,13 +25,40 @@ function majority(values) {
   return best;
 }
 
+function moveFrom(price, close, date) {
+  if (price == null || close == null || close === 0) {
+    return { close: close ?? null, date: date ?? null, change: null, changePercent: null };
+  }
+  const change = price - close;
+  return {
+    close: round(close, 4),
+    date: date ?? null,
+    change: round(change, 4),
+    changePercent: round((change / close) * 100, 4),
+  };
+}
+
 export async function buildHeatmap() {
-  const [constituents, weightBook] = await Promise.all([loadConstituents(), loadWeights()]);
-  const quotes = await fetchQuotes(constituents.map((stock) => stock.symbol));
+  const constituents = await loadConstituents();
+  const symbols = constituents.map((stock) => stock.symbol);
+  const [weightBook, history, quotes] = await Promise.all([
+    loadWeights(),
+    loadHistory(symbols),
+    fetchQuotes(symbols),
+  ]);
 
   const stocks = constituents.map((stock) => {
     const quote = quotes.get(stock.symbol);
+    const past = history.get(stock.symbol);
     const weight = weightBook.weights.get(stock.symbol) ?? null;
+    const periods = {
+      day: moveFrom(quote?.price, quote?.previousClose, past?.previousSession),
+    };
+    for (const lookback of LOOKBACKS) {
+      if (lookback.id === "day") continue;
+      const reference = past?.[lookback.id];
+      periods[lookback.id] = moveFrom(quote?.price, reference?.close, reference?.date);
+    }
     return {
       symbol: stock.symbol,
       name: stock.name,
@@ -39,10 +68,11 @@ export async function buildHeatmap() {
       price: quote?.price ?? null,
       previousClose: quote?.previousClose ?? null,
       regularPrice: quote?.regularPrice ?? null,
-      change: quote?.change ?? null,
-      changePercent: quote?.changePercent ?? null,
+      change: periods.day.change,
+      changePercent: periods.day.changePercent,
       extendedChangePercent: quote?.extendedChangePercent ?? null,
       session: quote?.session ?? null,
+      periods,
     };
   });
 
@@ -67,7 +97,8 @@ export async function buildHeatmap() {
     weightedChange,
     stockCount: stocks.length,
     quotedCount: quoted.length,
-    comparison: "Latest traded price versus the previous trading day's close.",
+    comparison: LOOKBACKS[0].comparison,
+    lookbacks: LOOKBACKS.map(({ id, label, scale, comparison }) => ({ id, label, scale, comparison })),
     sizing: "Box size is the stock's weight in SPY, the ETF that tracks the S&P 500.",
     stocks,
   };

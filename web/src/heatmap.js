@@ -1,6 +1,6 @@
 import { hierarchy, treemap } from "d3-hierarchy";
 import { tileColor } from "./color.js";
-import { formatPercent } from "./format.js";
+import { formatTilePercent } from "./format.js";
 
 function fitText(text, width, fontSize) {
   const maxChars = Math.floor((width - 8) / (fontSize * 0.56));
@@ -9,7 +9,7 @@ function fitText(text, width, fontSize) {
   return `${text.slice(0, Math.max(1, maxChars - 1))}…`;
 }
 
-export function renderHeatmap(svg, stocks) {
+export function renderHeatmap(svg, stocks, { scale = 3 } = {}) {
   const width = Math.floor(svg.clientWidth);
   const height = Math.floor(svg.clientHeight);
   svg.replaceChildren();
@@ -75,7 +75,7 @@ export function renderHeatmap(svg, stocks) {
       rect.setAttribute("y", y);
       rect.setAttribute("width", tileWidth);
       rect.setAttribute("height", tileHeight);
-      rect.setAttribute("fill", tileColor(stock.changePercent));
+      rect.setAttribute("fill", tileColor(stock.changePercent, scale));
       rect.dataset.symbol = stock.symbol;
       group.append(rect);
 
@@ -104,7 +104,7 @@ export function renderHeatmap(svg, stocks) {
         percent.setAttribute("x", x + tileWidth / 2);
         percent.setAttribute("y", textTop + symbolSize + 12);
         percent.setAttribute("font-size", String(Math.max(10, symbolSize - 4)));
-        percent.textContent = formatPercent(stock.changePercent);
+        percent.textContent = formatTilePercent(stock.changePercent);
         group.append(percent);
       }
     }

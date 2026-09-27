@@ -1,18 +1,18 @@
 const STOPS = [
-  [-3, [127, 29, 29]],
-  [-2, [185, 28, 28]],
-  [-1, [220, 38, 38]],
-  [-0.15, [127, 58, 62]],
+  [-1, [127, 29, 29]],
+  [-2 / 3, [185, 28, 28]],
+  [-1 / 3, [220, 38, 38]],
+  [-0.05, [127, 58, 62]],
   [0, [55, 62, 72]],
-  [0.15, [36, 92, 64]],
-  [1, [22, 140, 70]],
-  [2, [21, 128, 61]],
-  [3, [6, 78, 46]],
+  [0.05, [36, 92, 64]],
+  [1 / 3, [22, 140, 70]],
+  [2 / 3, [21, 128, 61]],
+  [1, [6, 78, 46]],
 ];
 
-export function tileColor(percent) {
-  if (percent == null || Number.isNaN(percent)) return "rgb(58, 64, 74)";
-  const value = Math.max(-3, Math.min(3, percent));
+export function tileColor(percent, limit = 3) {
+  if (percent == null || Number.isNaN(percent) || !limit) return "rgb(58, 64, 74)";
+  const value = Math.max(-limit, Math.min(limit, percent)) / limit;
   let index = 1;
   while (index < STOPS.length - 1 && STOPS[index][0] < value) index += 1;
   const [startValue, start] = STOPS[index - 1];

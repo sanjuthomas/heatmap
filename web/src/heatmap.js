@@ -9,7 +9,7 @@ function fitText(text, width, fontSize) {
   return `${text.slice(0, Math.max(1, maxChars - 1))}…`;
 }
 
-export function renderHeatmap(svg, stocks, { scale = 3 } = {}) {
+export function renderHeatmap(svg, stocks, { scale = 3, sizeOf = (stock) => stock.weight, colorOf = (stock) => stock.changePercent, formatOf = formatTilePercent } = {}) {
   const width = Math.floor(svg.clientWidth);
   const height = Math.floor(svg.clientHeight);
   svg.replaceChildren();
@@ -17,7 +17,7 @@ export function renderHeatmap(svg, stocks, { scale = 3 } = {}) {
 
   const grouped = new Map();
   for (const stock of stocks) {
-    if (!stock.weight) continue;
+    if (!sizeOf(stock)) continue;
     if (!grouped.has(stock.sector)) grouped.set(stock.sector, []);
     grouped.get(stock.sector).push(stock);
   }
@@ -26,7 +26,7 @@ export function renderHeatmap(svg, stocks, { scale = 3 } = {}) {
     name: "S&P 500",
     children: [...grouped.entries()].map(([name, children]) => ({ name, children })),
   })
-    .sum((node) => node.weight || 0)
+    .sum((node) => (node.symbol ? sizeOf(node) : 0))
     .sort((a, b) => (b.value || 0) - (a.value || 0));
 
   treemap()
@@ -75,7 +75,8 @@ export function renderHeatmap(svg, stocks, { scale = 3 } = {}) {
       rect.setAttribute("y", y);
       rect.setAttribute("width", tileWidth);
       rect.setAttribute("height", tileHeight);
-      rect.setAttribute("fill", tileColor(stock.changePercent, scale));
+      const painted = colorOf(stock);
+      rect.setAttribute("fill", tileColor(painted, scale));
       rect.dataset.symbol = stock.symbol;
       group.append(rect);
 
@@ -86,7 +87,7 @@ export function renderHeatmap(svg, stocks, { scale = 3 } = {}) {
       );
       if (symbolSize * stock.symbol.length * 0.58 > tileWidth - 4) continue;
 
-      const showPercent = tileHeight >= symbolSize + 18 && tileWidth >= 44 && stock.changePercent != null;
+      const showPercent = tileHeight >= symbolSize + 18 && tileWidth >= 44 && painted != null;
       const block = showPercent ? symbolSize + 13 : symbolSize;
       const textTop = y + (tileHeight - block) / 2;
 
@@ -104,7 +105,7 @@ export function renderHeatmap(svg, stocks, { scale = 3 } = {}) {
         percent.setAttribute("x", x + tileWidth / 2);
         percent.setAttribute("y", textTop + symbolSize + 12);
         percent.setAttribute("font-size", String(Math.max(10, symbolSize - 4)));
-        percent.textContent = formatTilePercent(stock.changePercent);
+        percent.textContent = formatOf(painted);
         group.append(percent);
       }
     }

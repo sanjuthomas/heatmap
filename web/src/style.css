@@ -51,6 +51,24 @@ header {
   color: var(--muted);
   font-size: 13px;
 }
+.pages {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+  font-size: 13px;
+}
+.pages a {
+  color: var(--muted);
+  text-decoration: none;
+}
+.pages a[aria-current="page"] {
+  color: var(--text);
+  font-weight: 600;
+}
+.pages a:hover { color: var(--text); }
+.legend-bar.cheap {
+  background: linear-gradient(90deg, #373e48, #168c46, #064e2e);
+}
 
 .hero { grid-area: hero; display: flex; flex-direction: column; }
 .hero-label {

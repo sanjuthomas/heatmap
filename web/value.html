@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>S&amp;P 500 Heatmap</title>
+    <title>S&amp;P 500 Value Map</title>
     <meta
       name="description"
-      content="S&P 500 heatmap. Each stock is sized by its index weight and colored by its change over a day, week, month, quarter, or year."
+      content="S&P 500 stocks trading below the nightly fair value. Box size is the market-cap gap. Color is how far below that value the price sits."
     />
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -22,24 +22,21 @@
       <div class="brand">
         <h1>S&amp;P 500</h1>
         <nav class="pages" aria-label="Pages">
-          <a href="./index.html" aria-current="page">Heatmap</a>
-          <a href="./value.html">Value map</a>
+          <a href="./index.html">Heatmap</a>
+          <a href="./value.html" aria-current="page">Value map</a>
         </nav>
         <p id="brand-note"></p>
       </div>
       <div class="hero" id="hero">
-        <span class="hero-label" id="hero-label">Past day</span>
+        <span class="hero-label" id="hero-label">Below both values</span>
         <strong id="hero-value">—</strong>
       </div>
       <div class="counts" id="counts"></div>
       <div class="status" id="status"></div>
       <div class="controls">
-        <div class="periods" role="group" aria-label="Lookback">
-          <button type="button" data-period="day" aria-pressed="true">Day</button>
-          <button type="button" data-period="week" aria-pressed="false">Week</button>
-          <button type="button" data-period="month" aria-pressed="false">Month</button>
-          <button type="button" data-period="quarter" aria-pressed="false">Quarter</button>
-          <button type="button" data-period="year" aria-pressed="false">Year</button>
+        <div class="periods" role="group" aria-label="Valuation method">
+          <button type="button" data-mode="both" aria-pressed="true">Both</button>
+          <button type="button" data-mode="cash" aria-pressed="false">Cash flow</button>
         </div>
         <input id="search" type="search" placeholder="Search ticker or company" autocomplete="off" />
         <select id="sector" aria-label="Sector">
@@ -48,20 +45,18 @@
         <button id="refresh" type="button">Refresh</button>
       </div>
       <div class="legend" aria-hidden="true">
-        <span id="legend-min">−3%</span>
-        <div class="legend-bar"></div>
-        <span id="legend-max">+3%</span>
+        <span id="legend-min">0</span>
+        <div class="legend-bar cheap"></div>
+        <span id="legend-max">40% below</span>
       </div>
-      <p class="disclaimer" id="disclaimer">
-        Box size is index weight. Color is the latest price versus the previous close.
-      </p>
+      <p class="disclaimer" id="disclaimer"></p>
     </header>
     <main id="map">
       <svg id="heatmap"></svg>
-      <div id="overlay" class="overlay">Loading the S&amp;P 500…</div>
+      <div id="overlay" class="overlay">Loading the value map…</div>
       <p id="search-empty" class="search-empty" hidden>No matching stocks.</p>
     </main>
     <div id="tooltip" class="tooltip" hidden></div>
-    <script type="module" src="./src/main.js"></script>
+    <script type="module" src="./src/value.js"></script>
   </body>
 </html>

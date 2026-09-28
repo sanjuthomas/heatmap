@@ -8,22 +8,22 @@
       name="description"
       content="S&P 500 stocks trading below the nightly fair value. Box size is the market-cap gap. Color is how far below that value the price sits."
     />
-    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="../favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./src/style.css" />
+    <link rel="stylesheet" href="../src/style.css" />
   </head>
   <body>
     <header>
       <div class="brand">
-        <h1>S&amp;P 500</h1>
+        <h1><a href="../">S&amp;P 500</a></h1>
         <nav class="pages" aria-label="Pages">
-          <a href="./index.html">Heatmap</a>
-          <a href="./value.html" aria-current="page">Value map</a>
+          <a href="../heatmap/">Heatmap</a>
+          <a href="../valuemap/" aria-current="page">Value map</a>
         </nav>
         <p id="brand-note"></p>
       </div>
@@ -58,6 +58,6 @@
       <p id="search-empty" class="search-empty" hidden>No matching stocks.</p>
     </main>
     <div id="tooltip" class="tooltip" hidden></div>
-    <script type="module" src="./src/value.js"></script>
+    <script type="module" src="../src/value.js"></script>
   </body>
 </html>

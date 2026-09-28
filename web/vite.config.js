@@ -7,7 +7,8 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve("index.html"),
-        value: resolve("value.html"),
+        heatmap: resolve("heatmap/index.html"),
+        valuemap: resolve("valuemap/index.html"),
       },
     },
   },

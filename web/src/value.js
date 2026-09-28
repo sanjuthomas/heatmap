@@ -37,14 +37,15 @@ async function resolveApiBase() {
   if (fromQuery) return fromQuery.trim();
   const stored = localStorage.getItem(STORAGE_KEY);
   if (stored) return stored.trim();
-  try {
-    const response = await fetch("./config.json", { cache: "no-store" });
-    if (response.ok) {
+  for (const url of ["./config.json", "../config.json"]) {
+    try {
+      const response = await fetch(url, { cache: "no-store" });
+      if (!response.ok) continue;
       const config = await response.json();
       if (config.apiBase) return String(config.apiBase).trim();
+    } catch {
+      // The next candidate may be the site root.
     }
-  } catch {
-    // Same-origin /api/heatmap is the local development default.
   }
   return "";
 }

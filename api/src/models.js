@@ -30,6 +30,70 @@ const RESIDUAL_INDUSTRIES = new Set([
 ]);
 
 const MAX_FILING_AGE_MS = 800 * 24 * 60 * 60 * 1000;
+const MIN_PEERS = 4;
+const MULTIPLE_BOUNDS = {
+  pe: [5, 60],
+  pb: [0.4, 5],
+  pffo: [8, 30],
+};
+
+export function perShareMetric(model, fundamentals) {
+  const shares = fundamentals?.shares;
+  if (!shares) return null;
+  if (model === "residual") {
+    if (!(fundamentals.bookEquity > 0)) return null;
+    return { kind: "pb", label: "P/B", perShare: fundamentals.bookEquity / shares };
+  }
+  if (model === "ffo") {
+    const ffo = fundamentals.ffoHistory?.at(-1);
+    if (!(ffo > 0)) return null;
+    return { kind: "pffo", label: "P/FFO", perShare: ffo / shares };
+  }
+  if (!(fundamentals.netIncome > 0)) return null;
+  return { kind: "pe", label: "P/E", perShare: fundamentals.netIncome / shares };
+}
+
+function median(values) {
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  if (sorted.length % 2) return sorted[mid];
+  return (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+function withinBounds(row) {
+  const [min, max] = MULTIPLE_BOUNDS[row.kind];
+  return row.ratio >= min && row.ratio <= max;
+}
+
+export function peerValuations(observations) {
+  const grouped = new Map();
+  for (const row of observations) {
+    if (!withinBounds(row)) continue;
+    for (const key of [`sub|${row.kind}|${row.subIndustry}`, `sector|${row.kind}|${row.sector}`]) {
+      const list = grouped.get(key) ?? [];
+      list.push(row);
+      grouped.set(key, list);
+    }
+  }
+
+  const bySymbol = {};
+  for (const row of observations) {
+    const sub = (grouped.get(`sub|${row.kind}|${row.subIndustry}`) ?? []).filter((peer) => peer.symbol !== row.symbol);
+    const sector = (grouped.get(`sector|${row.kind}|${row.sector}`) ?? []).filter((peer) => peer.symbol !== row.symbol);
+    const peers = sub.length >= MIN_PEERS ? sub : sector.length >= MIN_PEERS ? sector : null;
+    if (!peers || !(row.perShare > 0)) continue;
+    const multiple = median(peers.map((peer) => peer.ratio));
+    const fairValue = multiple * row.perShare;
+    if (!Number.isFinite(fairValue) || fairValue <= 0) continue;
+    const groupName = peers === sub ? row.subIndustry : row.sector;
+    bySymbol[row.symbol] = {
+      multipleFairValue: round(fairValue, 2),
+      multipleLabel: row.label,
+      multipleNote: `Median ${groupName} ${row.label} of ${multiple.toFixed(1)}×`,
+    };
+  }
+  return bySymbol;
+}
 
 export function selectModel(stock) {
   if (stock.sector === "Real Estate" && stock.subIndustry !== "Real Estate Services") return "ffo";

@@ -220,19 +220,33 @@ async function load() {
   }
 }
 
+function gapText(fairValue, price) {
+  if (fairValue == null || !price) return "";
+  const gap = ((fairValue - price) / price) * 100;
+  const gapClass = gap > 0 ? "up" : gap < 0 ? "down" : "";
+  return ` <span class="${gapClass}">${formatPercent(gap)} vs price</span>`;
+}
+
 function fairValueHtml(stock) {
   const valuation = stock.valuation;
   if (!valuation) return "";
-  if (valuation.status !== "ok" || valuation.fairValue == null) {
+  const lines = [];
+  if (valuation.status === "ok" && valuation.fairValue != null) {
+    const filed = valuation.fiscalYearEnd ? ` · filed ${formatDate(valuation.fiscalYearEnd)}` : "";
+    lines.push(`<p class="tip-fair">Fair value ${formatPrice(valuation.fairValue)}${gapText(valuation.fairValue, stock.price)}</p>`);
+    lines.push(`<p class="tip-extra">${valuation.modelLabel} · ${valuation.assumption}${filed}</p>`);
+  }
+  if (valuation.multipleFairValue != null) {
+    lines.push(
+      `<p class="tip-fair">Peer value ${formatPrice(valuation.multipleFairValue)}${gapText(valuation.multipleFairValue, stock.price)}</p>`,
+    );
+    lines.push(`<p class="tip-extra">${valuation.multipleNote}</p>`);
+  }
+  if (!lines.length) {
     const reason = valuation.reason ? ` ${valuation.reason}.` : "";
     return `<p class="tip-extra">Fair value unavailable.${reason}</p>`;
   }
-  const gap = stock.price ? ((valuation.fairValue - stock.price) / stock.price) * 100 : null;
-  const gapClass = gap == null ? "" : gap > 0 ? "up" : gap < 0 ? "down" : "";
-  const gapText = gap == null ? "" : ` <span class="${gapClass}">${formatPercent(gap)} vs price</span>`;
-  const filed = valuation.fiscalYearEnd ? ` · filed ${formatDate(valuation.fiscalYearEnd)}` : "";
-  return `<p class="tip-fair">Fair value ${formatPrice(valuation.fairValue)}${gapText}</p>
-    <p class="tip-extra">${valuation.modelLabel} · ${valuation.assumption}${filed}</p>`;
+  return lines.join("");
 }
 
 function showTooltip(stock, x, y) {

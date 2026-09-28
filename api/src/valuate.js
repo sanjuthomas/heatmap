@@ -1,5 +1,5 @@
 import { loadConstituents } from "./constituents.js";
-import { selectModel, valueCompany } from "./models.js";
+import { peerValuations, perShareMetric, selectModel, valueCompany } from "./models.js";
 import { fetchQuotes } from "./quotes.js";
 import { fetchCompanyFacts, fundamentalsFromFacts } from "./sec.js";
 import { saveValuation } from "./valuationStore.js";
@@ -88,11 +88,14 @@ export async function buildValuation(stocks) {
     console.warn(`Quote check skipped (${error.message})`);
   }
 
+  const stockBySymbol = new Map(stocks.map((stock) => [stock.symbol, stock]));
+  const observations = [];
   const bySymbol = {};
   let ok = 0;
   for (const [group, fundamentals] of computed) {
     for (const symbol of group.symbols) {
       const quote = quotes.get(symbol);
+      const stock = stockBySymbol.get(symbol);
       const filedShares = fundamentals?.shares > 0 ? fundamentals.shares : null;
       const quotedShares = quote?.sharesOutstanding ?? null;
       const shareRatio = filedShares && quotedShares ? filedShares / quotedShares : 1;
@@ -114,7 +117,27 @@ export async function buildValuation(stocks) {
       const adjusted = withPriceCheck(usedFilingShares ? withShareClass(symbol, result) : result, quote?.price);
       bySymbol[symbol] = adjusted;
       if (adjusted.status === "ok") ok += 1;
+      const metric = fundamentals ? perShareMetric(group.model, { ...fundamentals, shares }) : null;
+      if (metric && quote?.price > 0 && stock) {
+        const perShare = usedFilingShares && symbol === "BRK.B" ? metric.perShare / 1500 : metric.perShare;
+        observations.push({
+          symbol,
+          sector: stock.sector,
+          subIndustry: stock.subIndustry,
+          kind: metric.kind,
+          label: metric.label,
+          perShare,
+          ratio: quote.price / perShare,
+        });
+      }
     }
+  }
+  const multiples = peerValuations(observations);
+  let multipleCount = 0;
+  for (const [symbol, multiple] of Object.entries(multiples)) {
+    if (!bySymbol[symbol]) continue;
+    Object.assign(bySymbol[symbol], multiple);
+    multipleCount += 1;
   }
   for (const stock of stocks) {
     if (bySymbol[stock.symbol]) continue;
@@ -130,7 +153,9 @@ export async function buildValuation(stocks) {
     };
   }
 
-  console.log(`Valuation ${ok}/${stocks.length} priced in ${Math.round((Date.now() - started) / 1000)}s`);
+  console.log(
+    `Valuation ${ok}/${stocks.length} cash-flow values, ${multipleCount} peer multiples, in ${Math.round((Date.now() - started) / 1000)}s`,
+  );
   return {
     computedAt: new Date().toISOString(),
     ok,
@@ -148,7 +173,9 @@ async function main() {
   if (symbols.length) {
     for (const symbol of symbols) {
       const row = snapshot.stocks[symbol];
-      console.log(`${symbol} ${row.model} ${row.status} ${row.fairValue ?? row.reason} ${row.fiscalYearEnd ?? ""}`);
+      console.log(
+        `${symbol} ${row.model} ${row.status} ${row.fairValue ?? row.reason} ${row.fiscalYearEnd ?? ""} peer ${row.multipleFairValue ?? "none"} ${row.multipleNote ?? ""}`,
+      );
     }
     return;
   }

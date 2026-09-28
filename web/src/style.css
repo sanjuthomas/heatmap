@@ -248,7 +248,7 @@ input:focus, select:focus, button:focus {
 .tooltip {
   position: fixed;
   z-index: 5;
-  width: 260px;
+  width: 300px;
   padding: 12px 14px;
   border-radius: 10px;
   background: #161b22;
@@ -274,6 +274,15 @@ input:focus, select:focus, button:focus {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
 }
+.tip-fair {
+  margin-top: 8px !important;
+  padding-top: 8px;
+  border-top: 1px solid #2d3542;
+  font-size: 13px;
+  font-weight: 600;
+}
+.tip-fair .up { color: var(--up); }
+.tip-fair .down { color: var(--down); }
 
 @media (max-width: 860px) {
   header {

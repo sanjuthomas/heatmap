@@ -22,6 +22,7 @@ function toStocks(rows) {
       name: (row.Security || "").trim(),
       sector: (row["GICS Sector"] || "Other").trim(),
       subIndustry: (row["GICS Sub-Industry"] || "").trim(),
+      cik: String(row.CIK ?? "").trim() || null,
     }))
     .filter((stock) => stock.symbol);
 }
@@ -29,6 +30,11 @@ function toStocks(rows) {
 async function fromDisk() {
   const text = await readFile(DATA_FILE, "utf8");
   return toStocks(parseCsv(text));
+}
+
+function mergeCik(stocks, bundled) {
+  const cikBySymbol = new Map(bundled.map((stock) => [stock.symbol, stock.cik]));
+  return stocks.map((stock) => ({ ...stock, cik: stock.cik || cikBySymbol.get(stock.symbol) || null }));
 }
 
 export async function loadConstituents() {
@@ -39,7 +45,7 @@ export async function loadConstituents() {
       headers: { "User-Agent": USER_AGENT, Accept: "text/csv" },
       timeoutMs: 15000,
     });
-    const stocks = toStocks(parseCsv(await response.text()));
+    const stocks = mergeCik(toStocks(parseCsv(await response.text())), await fromDisk());
     if (stocks.length < 450) throw new Error(`constituent list too short (${stocks.length})`);
     cache = { at: Date.now(), stocks };
     return stocks;

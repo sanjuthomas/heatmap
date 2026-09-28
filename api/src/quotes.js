@@ -35,10 +35,19 @@ function sessionPrice(quote) {
     marketStatus: status,
     quoteTime: (useExtended ? extended?.last_timedate : quote.last_timedate) || quote.last_timedate || null,
     realtime: quote.realTime === true || quote.realTime === "true",
+    sharesOutstanding: parseShares(quote.sharesout),
   };
 }
 
-export async function fetchQuotes(symbols) {
+function parseShares(value) {
+  const match = String(value ?? "").trim().replace(/,/g, "").match(/^([0-9]*\.?[0-9]+)\s*([KMBT])?$/i);
+  if (!match) return null;
+  const scale = { K: 1e3, M: 1e6, B: 1e9, T: 1e12 }[(match[2] || "").toUpperCase()] ?? 1;
+  const shares = Number(match[1]) * scale;
+  return Number.isFinite(shares) && shares > 0 ? shares : null;
+}
+
+export async function fetchQuotes(symbols, { minimum = 400 } = {}) {
   const url = new URL(QUOTE_URL);
   url.searchParams.set("symbols", symbols.join("|"));
   url.searchParams.set("requestMethod", "itv");
@@ -62,7 +71,7 @@ export async function fetchQuotes(symbols) {
     if (row.code != null && Number(row.code) !== 0) continue;
     quotes.set(row.symbol, sessionPrice(row));
   }
-  if (quotes.size < 400) {
+  if (quotes.size < minimum) {
     throw new Error(`quote feed returned ${quotes.size} symbols`);
   }
   return quotes;

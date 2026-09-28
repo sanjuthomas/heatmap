@@ -220,6 +220,21 @@ async function load() {
   }
 }
 
+function fairValueHtml(stock) {
+  const valuation = stock.valuation;
+  if (!valuation) return "";
+  if (valuation.status !== "ok" || valuation.fairValue == null) {
+    const reason = valuation.reason ? ` ${valuation.reason}.` : "";
+    return `<p class="tip-extra">Fair value unavailable.${reason}</p>`;
+  }
+  const gap = stock.price ? ((valuation.fairValue - stock.price) / stock.price) * 100 : null;
+  const gapClass = gap == null ? "" : gap > 0 ? "up" : gap < 0 ? "down" : "";
+  const gapText = gap == null ? "" : ` <span class="${gapClass}">${formatPercent(gap)} vs price</span>`;
+  const filed = valuation.fiscalYearEnd ? ` · filed ${formatDate(valuation.fiscalYearEnd)}` : "";
+  return `<p class="tip-fair">Fair value ${formatPrice(valuation.fairValue)}${gapText}</p>
+    <p class="tip-extra">${valuation.modelLabel} · ${valuation.assumption}${filed}</p>`;
+}
+
 function showTooltip(stock, x, y) {
   const direction = stock.changePercent > 0 ? "up" : stock.changePercent < 0 ? "down" : "flat";
   const afterHours =
@@ -236,7 +251,8 @@ function showTooltip(stock, x, y) {
     <p class="tip-price">${formatPrice(stock.price)}</p>
     <p class="tip-extra">${referenceName} ${formatPrice(referencePrice)}${referenceDate}</p>
     ${afterHours}
-    <p class="tip-extra">Index weight ${formatWeight(stock.weight)}</p>`;
+    <p class="tip-extra">Index weight ${formatWeight(stock.weight)}</p>
+    ${fairValueHtml(stock)}`;
   const rect = tooltip.getBoundingClientRect();
   const pad = 12;
   let left = x + 16;

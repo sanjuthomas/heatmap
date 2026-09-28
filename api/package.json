@@ -7,9 +7,11 @@
   },
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node --watch src/server.js"
+    "dev": "node --watch src/server.js",
+    "valuate": "node src/valuate.js"
   },
   "dependencies": {
+    "@google-cloud/firestore": "^9.2.0",
     "fast-xml-parser": "^5.2.5",
     "jszip": "^3.10.1"
   }

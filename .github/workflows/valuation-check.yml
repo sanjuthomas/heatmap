@@ -1,0 +1,29 @@
+name: Valuation check
+
+on:
+  schedule:
+    # 12:30 UTC is 8:30am Eastern during daylight time and 7:30am during standard time,
+    # after the 2:00am America/New_York valuation job.
+    - cron: "30 12 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - name: Compare valuations with Firestore
+        working-directory: api
+        run: npm ci && npm run check

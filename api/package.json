@@ -8,7 +8,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "valuate": "node src/valuate.js"
+    "valuate": "node src/valuate.js",
+    "check": "node src/checkValuation.js"
   },
   "dependencies": {
     "@google-cloud/firestore": "^9.2.0",

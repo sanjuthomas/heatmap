@@ -2,7 +2,7 @@ import { renderHeatmap } from "./heatmap.js";
 import { formatClock, formatDate, formatPercent, formatPrice, formatWeight, statusLabel } from "./format.js";
 
 const STORAGE_KEY = "heatmap.apiBase";
-const REFRESH_MS = 20_000;
+const REFRESH_MS = 5 * 60 * 1000;
 
 const svg = document.querySelector("#heatmap");
 const overlay = document.querySelector("#overlay");

@@ -4,7 +4,7 @@ A static site that draws the S&P 500 as a heatmap:
 
 - **Box size** is the stock’s weight in SPY, the ETF that tracks the index.
 - **Color** is the latest price compared with an earlier close. Day is the default. Week, month, quarter, and year are available on the page. Green is up, red is down.
-- Quotes refresh about every 20 seconds while the page is open.
+- Quotes refresh every 5 minutes while the page is open.
 
 The page itself is only HTML, CSS, and JavaScript, so it can be hosted on GitHub Pages. Live prices and index weights cannot be read from the browser (the feeds do not allow it), so a small [Cloud Run](https://cloud.google.com/run) service fetches them and the page calls that service.
 

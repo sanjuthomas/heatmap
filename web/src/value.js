@@ -64,10 +64,12 @@ function qualifies(stock) {
   const price = stock.price;
   if (price == null || price <= 0 || !stock.weight) return false;
   const cash = cashValue(stock);
-  if (cash == null || price >= cash) return false;
-  if (state.mode === "cash") return true;
   const peer = peerValue(stock);
-  return peer != null && price < peer;
+  const belowCash = cash != null && price < cash;
+  const belowPeer = peer != null && price < peer;
+  if (state.mode === "cash") return belowCash;
+  if (state.mode === "peer") return belowPeer;
+  return belowCash && belowPeer;
 }
 
 function gapPercent(stock) {
@@ -137,13 +139,27 @@ function paintHeader() {
   const data = state.data;
   if (!data) return;
   const listed = visibleStocks();
-  const label = state.mode === "cash" ? "Below cash-flow value" : "Below both values";
-  document.querySelector("#hero-label").textContent = label;
+  const copy = {
+    peer: {
+      label: "Below peer value",
+      title: "Stocks whose price is below the peer value.",
+      note: "A stock appears when its price is below the peer value. Box size is that gap times the stock's SPY weight, which tracks the dollar size of the gap. Color is the same gap. Quotes are unofficial.",
+    },
+    cash: {
+      label: "Below cash-flow value",
+      title: "Stocks whose price is below the cash-flow fair value.",
+      note: "A stock appears when its price is below the cash-flow fair value. Box size is that gap times the stock's SPY weight, which tracks the dollar size of the gap. Color is the same gap. Quotes are unofficial.",
+    },
+    both: {
+      label: "Below both values",
+      title: "Stocks whose price is below both the cash-flow fair value and the peer value.",
+      note: "A stock appears when its price is below both the cash-flow fair value and the peer value. Box size is the peer gap times the stock's SPY weight, which tracks the dollar size of the gap. Color is the same gap. Quotes are unofficial.",
+    },
+  }[state.mode];
+  document.querySelector("#hero-label").textContent = copy.label;
   heroValue.textContent = String(listed.length);
   heroValue.className = listed.length ? "up" : "flat";
-  heroValue.title = state.mode === "cash"
-    ? "Stocks whose price is below the cash-flow fair value."
-    : "Stocks whose price is below both the cash-flow fair value and the peer value.";
+  heroValue.title = copy.title;
 
   const weight = listed.reduce((sum, stock) => sum + (stock.weight || 0), 0);
   const typical = median(listed.map(gapPercent).filter((gap) => gap != null));
@@ -153,9 +169,7 @@ function paintHeader() {
   const valued = data.valuationAsOf ? `Values ${formatDate(data.valuationAsOf.slice(0, 10))}` : "Values unavailable";
   status.innerHTML = `<span class="badge badge-${(data.marketStatus || "unknown").toLowerCase()}">${badge}</span><span class="clock">${valued}<br>Refreshed ${formatClock(data.asOf)}</span>`;
   brandNote.textContent = `${data.stockCount} stocks`;
-  disclaimer.textContent = state.mode === "cash"
-    ? "A stock appears when its price is below the cash-flow fair value. Box size is that gap times the stock's SPY weight, which tracks the dollar size of the gap. Color is the same gap. Quotes are unofficial."
-    : "A stock appears when its price is below both the cash-flow fair value and the peer value. Box size is the peer gap times the stock's SPY weight, which tracks the dollar size of the gap. Color is the same gap. Quotes are unofficial.";
+  disclaimer.textContent = copy.note;
 }
 
 function fillSectors() {

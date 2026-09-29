@@ -1,4 +1,4 @@
-import { fetchWithRetry } from "./util.js";
+import { fetchWithRetry, round } from "./util.js";
 
 const SEC_USER_AGENT = "SP500Heatmap/1.0 (sanju@sanju.org)";
 const FACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK";
@@ -29,6 +29,34 @@ const LONG_TERM_NONCURRENT = ["LongTermDebtNoncurrent"];
 const LONG_TERM_CURRENT = ["LongTermDebtCurrent", "DebtCurrent"];
 const SHORT_DEBT = ["ShortTermBorrowings"];
 const COMMERCIAL_PAPER = ["CommercialPaper"];
+const RATIO_NET_INCOME = [
+  "NetIncomeLossAttributableToParent",
+  "NetIncomeLoss",
+  "ProfitLossAttributableToOwnersOfParent",
+  "ProfitLoss",
+];
+const RATIO_EQUITY = [
+  "StockholdersEquity",
+  "EquityAttributableToOwnersOfParent",
+  "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+];
+const RATIO_ASSETS = ["Assets"];
+const RATIO_OPERATING = ["OperatingIncomeLoss", "ProfitLossFromOperatingActivities"];
+const RATIO_PRETAX = [
+  "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+  "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments",
+  "IncomeLossFromContinuingOperationsBeforeIncomeTaxExpenseBenefit",
+  "ProfitLossBeforeTax",
+];
+const RATIO_TAX = ["IncomeTaxExpenseBenefit", "IncomeTaxExpenseContinuingOperations"];
+const RATIO_CASH = [...CASH, "CashAndCashEquivalents"];
+const RATIO_BORROWINGS_NONCURRENT = ["NoncurrentBorrowings"];
+const RATIO_BORROWINGS_CURRENT = ["CurrentBorrowings"];
+const RATIO_BORROWINGS = ["Borrowings"];
+const RATIO_LONG_TERM_TOTAL = [
+  "LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities",
+  "ConvertibleLongTermNotesPayable",
+];
 
 let paceChain = Promise.resolve();
 
@@ -51,7 +79,7 @@ function isAnnual(row) {
 }
 
 function seriesFor(facts, name) {
-  const concept = facts?.facts?.["us-gaap"]?.[name] ?? facts?.facts?.dei?.[name];
+  const concept = facts?.facts?.["us-gaap"]?.[name] ?? facts?.facts?.dei?.[name] ?? facts?.facts?.["ifrs-full"]?.[name];
   const units = concept?.units;
   if (!units) return [];
   const rows = units.USD ?? units.shares ?? units.pure ?? Object.values(units)[0];
@@ -147,6 +175,100 @@ export function fundamentalsFromFacts(facts) {
     dividends: valueAtEnd(facts, DIVIDENDS, fiscalYearEnd),
     shares,
     netDebt,
+  };
+}
+
+function ratioOf(numerator, denominator) {
+  if (numerator == null || !(denominator > 0)) return null;
+  const value = numerator / denominator;
+  return Number.isFinite(value) ? round(value, 4) : null;
+}
+
+function averageBalance(current, prior) {
+  if (current == null) return null;
+  if (prior == null) return current;
+  return (current + prior) / 2;
+}
+
+function latestFiscalYearEnd(facts) {
+  const ends = [];
+  for (const name of RATIO_NET_INCOME) {
+    const end = seriesFor(facts, name).at(-1)?.end;
+    if (end) ends.push(end);
+  }
+  return ends.sort().at(-1) ?? null;
+}
+
+function priorFiscalYearEnd(facts, end) {
+  const ends = new Set();
+  for (const name of [...RATIO_NET_INCOME, ...RATIO_EQUITY, ...RATIO_ASSETS]) {
+    for (const row of seriesFor(facts, name)) {
+      if (row.end < end) ends.add(row.end);
+    }
+  }
+  return [...ends].sort().at(-1) ?? null;
+}
+
+function ratioDebt(facts, end) {
+  const standardLongTerm = valueAtEnd(facts, LONG_TERM_DEBT, end);
+  const noncurrent = valueAtEnd(facts, LONG_TERM_NONCURRENT, end);
+  const current = valueAtEnd(facts, LONG_TERM_CURRENT, end);
+  if (standardLongTerm == null && noncurrent == null && current == null) {
+    const longTermTotal = valueAtEnd(facts, RATIO_LONG_TERM_TOTAL, end);
+    if (longTermTotal != null) {
+      const shortTerm = valueAtEnd(facts, SHORT_DEBT, end) ?? 0;
+      const paper = valueAtEnd(facts, COMMERCIAL_PAPER, end) ?? 0;
+      return longTermTotal + shortTerm + paper;
+    }
+  }
+  const reported = debtOn(facts, end);
+  if (reported != null) return reported;
+  const ifrsNoncurrent = valueAtEnd(facts, RATIO_BORROWINGS_NONCURRENT, end);
+  const ifrsCurrent = valueAtEnd(facts, RATIO_BORROWINGS_CURRENT, end);
+  if (ifrsNoncurrent != null || ifrsCurrent != null) return (ifrsNoncurrent ?? 0) + (ifrsCurrent ?? 0);
+  return valueAtEnd(facts, RATIO_BORROWINGS, end);
+}
+
+function investedCapital(facts, end) {
+  const equity = valueAtEnd(facts, RATIO_EQUITY, end);
+  const debt = ratioDebt(facts, end);
+  if (!(equity > 0) || debt == null) return null;
+  const cash = valueAtEnd(facts, RATIO_CASH, end) ?? 0;
+  const capital = equity + debt - cash;
+  return capital > 0 ? capital : null;
+}
+
+function effectiveTaxRate(facts, end) {
+  const pretax = valueAtEnd(facts, RATIO_PRETAX, end);
+  const tax = valueAtEnd(facts, RATIO_TAX, end);
+  if (!(pretax > 0) || tax == null) return null;
+  return Math.min(0.5, Math.max(0, tax / pretax));
+}
+
+export function ratiosFromFacts(facts) {
+  const fiscalYearEnd = latestFiscalYearEnd(facts);
+  const empty = { fiscalYearEnd, roe: null, roa: null, roic: null, debtToEquity: null };
+  if (!fiscalYearEnd) return empty;
+
+  const priorEnd = priorFiscalYearEnd(facts, fiscalYearEnd);
+  const netIncome = valueAtEnd(facts, RATIO_NET_INCOME, fiscalYearEnd);
+  const equity = valueAtEnd(facts, RATIO_EQUITY, fiscalYearEnd);
+  const priorEquity = priorEnd ? valueAtEnd(facts, RATIO_EQUITY, priorEnd) : null;
+  const assets = valueAtEnd(facts, RATIO_ASSETS, fiscalYearEnd);
+  const priorAssets = priorEnd ? valueAtEnd(facts, RATIO_ASSETS, priorEnd) : null;
+  const debt = ratioDebt(facts, fiscalYearEnd);
+
+  const operatingIncome = valueAtEnd(facts, RATIO_OPERATING, fiscalYearEnd);
+  const taxRate = effectiveTaxRate(facts, fiscalYearEnd);
+  const capital = averageBalance(investedCapital(facts, fiscalYearEnd), priorEnd ? investedCapital(facts, priorEnd) : null);
+  const nopat = operatingIncome == null || taxRate == null ? null : operatingIncome * (1 - taxRate);
+
+  return {
+    fiscalYearEnd,
+    roe: equity > 0 ? ratioOf(netIncome, averageBalance(equity, priorEquity)) : null,
+    roa: assets > 0 ? ratioOf(netIncome, averageBalance(assets, priorAssets)) : null,
+    roic: ratioOf(nopat, capital),
+    debtToEquity: ratioOf(debt, equity),
   };
 }
 

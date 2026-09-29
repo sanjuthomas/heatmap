@@ -5,3 +5,4 @@ dist/
 .env
 .env.*
 api/data/valuations.json
+api/data/ratios.json

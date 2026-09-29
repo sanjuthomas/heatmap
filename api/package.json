@@ -9,6 +9,8 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "valuate": "node src/valuate.js",
+    "ratios": "node src/ratios.js",
+    "test": "node --test src/ratios.test.js",
     "check": "node src/checkValuation.js"
   },
   "dependencies": {

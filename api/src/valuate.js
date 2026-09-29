@@ -1,7 +1,9 @@
 import { loadConstituents } from "./constituents.js";
 import { peerValuations, perShareMetric, selectModel, valueCompany } from "./models.js";
 import { fetchQuotes } from "./quotes.js";
-import { fetchCompanyFacts, fundamentalsFromFacts } from "./sec.js";
+import { countRatios } from "./ratios.js";
+import { saveRatios } from "./ratiosStore.js";
+import { fetchCompanyFacts, fundamentalsFromFacts, ratiosFromFacts } from "./sec.js";
 import { saveValuation } from "./valuationStore.js";
 
 const MIN_FULL_RESULTS = 200;
@@ -66,15 +68,16 @@ export async function buildValuation(stocks) {
     try {
       const facts = await fetchCompanyFacts(group.cik);
       const fundamentals = fundamentalsFromFacts(facts);
+      const ratios = ratiosFromFacts(facts);
       completed += 1;
       if (completed % 25 === 0 || completed === groups.size) {
         console.log(`Valued ${completed}/${groups.size}`);
       }
-      return [group, fundamentals];
+      return [group, fundamentals, ratios];
     } catch (error) {
       completed += 1;
       console.warn(`Valuation ${group.symbols.join("/")} failed: ${error.message}`);
-      return [group, null];
+      return [group, null, null];
     }
   });
 
@@ -91,8 +94,9 @@ export async function buildValuation(stocks) {
   const stockBySymbol = new Map(stocks.map((stock) => [stock.symbol, stock]));
   const observations = [];
   const bySymbol = {};
+  const ratiosBySymbol = {};
   let ok = 0;
-  for (const [group, fundamentals] of computed) {
+  for (const [group, fundamentals, ratios] of computed) {
     for (const symbol of group.symbols) {
       const quote = quotes.get(symbol);
       const stock = stockBySymbol.get(symbol);
@@ -116,6 +120,7 @@ export async function buildValuation(stocks) {
           };
       const adjusted = withPriceCheck(usedFilingShares ? withShareClass(symbol, result) : result, quote?.price);
       bySymbol[symbol] = adjusted;
+      ratiosBySymbol[symbol] = ratios ?? { fiscalYearEnd: null, roe: null, roa: null, roic: null, debtToEquity: null };
       if (adjusted.status === "ok") ok += 1;
       const metric = fundamentals ? perShareMetric(group.model, { ...fundamentals, shares }) : null;
       if (metric && quote?.price > 0 && stock) {
@@ -140,6 +145,9 @@ export async function buildValuation(stocks) {
     multipleCount += 1;
   }
   for (const stock of stocks) {
+    if (!ratiosBySymbol[stock.symbol]) {
+      ratiosBySymbol[stock.symbol] = { fiscalYearEnd: null, roe: null, roa: null, roic: null, debtToEquity: null };
+    }
     if (bySymbol[stock.symbol]) continue;
     bySymbol[stock.symbol] = {
       status: "unavailable",
@@ -153,14 +161,24 @@ export async function buildValuation(stocks) {
     };
   }
 
+  const available = countRatios(ratiosBySymbol);
   console.log(
     `Valuation ${ok}/${stocks.length} cash-flow values, ${multipleCount} peer multiples, in ${Math.round((Date.now() - started) / 1000)}s`,
+  );
+  console.log(
+    `Ratios: ROE ${available.roe}, ROA ${available.roa}, ROIC ${available.roic}, D/E ${available.debtToEquity}`,
   );
   return {
     computedAt: new Date().toISOString(),
     ok,
     stockCount: stocks.length,
     stocks: bySymbol,
+    ratios: {
+      computedAt: new Date().toISOString(),
+      stockCount: stocks.length,
+      available,
+      stocks: ratiosBySymbol,
+    },
   };
 }
 
@@ -182,8 +200,12 @@ async function main() {
   if (snapshot.ok < MIN_FULL_RESULTS) {
     throw new Error(`Only ${snapshot.ok} fair values computed; left the stored snapshot unchanged`);
   }
+  const ratios = snapshot.ratios;
+  delete snapshot.ratios;
   const saved = await saveValuation(snapshot, { fileOnly });
   console.log(`Saved ${snapshot.ok} fair values${saved.firestore ? " to Firestore" : " to api/data/valuations.json"}`);
+  const savedRatios = await saveRatios(ratios, { fileOnly });
+  console.log(`Saved ratios for ${ratios.stockCount} stocks${savedRatios.firestore ? " to Firestore" : " to api/data/ratios.json"}`);
 }
 
 const isDirectRun = process.argv[1]?.endsWith("valuate.js");

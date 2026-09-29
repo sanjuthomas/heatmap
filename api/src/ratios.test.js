@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { presentRatios, usesEbitda } from "./ratios.js";
 import { ratiosFromFacts } from "./sec.js";
 
 function filing(end, val, { start = null, form = "10-K", fp = "FY" } = {}) {
@@ -41,6 +42,70 @@ test("annual ratios use average balances and year-end debt", () => {
   assert.equal(ratios.roa, 0.1);
   assert.equal(ratios.debtToEquity, 0.3667);
   assert.equal(ratios.roic, 0.1805);
+  assert.equal(ratios.ebitda, null);
+});
+
+test("ebitda adds depreciation back to operating income", () => {
+  const ratios = ratiosFromFacts(factsFrom({
+    NetIncomeLoss: [filing("2024-12-31", 80, { start: "2024-01-01" })],
+    OperatingIncomeLoss: [filing("2024-12-31", 150, { start: "2024-01-01" })],
+    DepreciationDepletionAndAmortization: [filing("2024-12-31", 40, { start: "2024-01-01" })],
+  }));
+  assert.equal(ratios.ebitda, 190);
+});
+
+test("operating income is used ahead of the pretax fallback", () => {
+  const ratios = ratiosFromFacts(factsFrom({
+    NetIncomeLoss: [filing("2024-12-31", 80, { start: "2024-01-01" })],
+    OperatingIncomeLoss: [filing("2024-12-31", 150, { start: "2024-01-01" })],
+    IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest: [filing("2024-12-31", 100, { start: "2024-01-01" })],
+    InterestExpense: [filing("2024-12-31", 80, { start: "2024-01-01" })],
+    DepreciationDepletionAndAmortization: [filing("2024-12-31", 40, { start: "2024-01-01" })],
+  }));
+  assert.equal(ratios.ebitda, 190);
+});
+
+test("missing operating income uses pretax, interest, and depreciation", () => {
+  const ratios = ratiosFromFacts(factsFrom({
+    NetIncomeLoss: [filing("2024-12-31", 80, { start: "2024-01-01" })],
+    IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest: [filing("2024-12-31", 100, { start: "2024-01-01" })],
+    InterestExpense: [filing("2024-12-31", 15, { start: "2024-01-01" })],
+    RealEstateInventoryCapitalizedInterestCostsCostOfSales1: [filing("2024-12-31", 5, { start: "2024-01-01" })],
+    DepreciationAmortizationAndAccretionNet: [filing("2024-12-31", 10, { start: "2024-01-01" })],
+  }));
+  assert.equal(ratios.ebitda, 130);
+});
+
+test("pretax split between domestic and foreign is added together", () => {
+  const ratios = ratiosFromFacts(factsFrom({
+    NetIncomeLoss: [filing("2024-12-31", 70, { start: "2024-01-01" })],
+    IncomeLossFromContinuingOperationsBeforeIncomeTaxesDomestic: [filing("2024-12-31", 80, { start: "2024-01-01" })],
+    IncomeLossFromContinuingOperationsBeforeIncomeTaxesForeign: [filing("2024-12-31", 20, { start: "2024-01-01" })],
+    DepreciationAndAmortization: [filing("2024-12-31", 12, { start: "2024-01-01" })],
+  }));
+  assert.equal(ratios.ebitda, 112);
+});
+
+test("a negative depreciation tag is still added back", () => {
+  const ratios = ratiosFromFacts(factsFrom({
+    NetIncomeLoss: [filing("2024-12-31", 40, { start: "2024-01-01" })],
+    OperatingIncomeLoss: [filing("2024-12-31", 100, { start: "2024-01-01" })],
+    Depreciation: [filing("2024-12-31", -25, { start: "2024-01-01" })],
+  }));
+  assert.equal(ratios.ebitda, 125);
+});
+
+test("ebitda is kept for industrials, utilities, and consumer durables", () => {
+  const ratios = { fiscalYearEnd: "2024-12-31", roe: 0.1, ebitda: 190 };
+  assert.equal(usesEbitda({ sector: "Industrials", subIndustry: "Industrial Machinery & Supplies & Components" }), true);
+  assert.equal(usesEbitda({ sector: "Utilities", subIndustry: "Electric Utilities" }), true);
+  assert.equal(usesEbitda({ sector: "Consumer Discretionary", subIndustry: "Automobile Manufacturers" }), true);
+  assert.equal(usesEbitda({ sector: "Consumer Discretionary", subIndustry: "Homebuilding" }), true);
+  assert.equal(usesEbitda({ sector: "Consumer Discretionary", subIndustry: "Restaurants" }), false);
+  assert.equal(usesEbitda({ sector: "Financials", subIndustry: "Diversified Banks" }), false);
+  assert.equal(presentRatios({ sector: "Industrials", subIndustry: "Building Products" }, ratios).ebitda, 190);
+  assert.equal(presentRatios({ sector: "Financials", subIndustry: "Diversified Banks" }, ratios).ebitda, null);
+  assert.equal(presentRatios({ sector: "Consumer Discretionary", subIndustry: "Restaurants" }, ratios).ebitda, null);
 });
 
 test("missing operating income leaves return on capital empty", () => {

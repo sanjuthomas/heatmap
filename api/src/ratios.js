@@ -2,7 +2,27 @@ import { loadConstituents } from "./constituents.js";
 import { fetchCompanyFacts, ratiosFromFacts } from "./sec.js";
 import { saveRatios } from "./ratiosStore.js";
 
-const EMPTY = { fiscalYearEnd: null, roe: null, roa: null, roic: null, debtToEquity: null };
+const EMPTY = { fiscalYearEnd: null, roe: null, roa: null, roic: null, debtToEquity: null, ebitda: null };
+
+const EBITDA_SECTORS = new Set(["Industrials", "Utilities"]);
+const EBITDA_SUBINDUSTRIES = new Set([
+  "Automobile Manufacturers",
+  "Automotive Parts & Equipment",
+  "Consumer Electronics",
+  "Homebuilding",
+  "Leisure Products",
+]);
+
+export function usesEbitda(stock) {
+  if (!stock) return false;
+  return EBITDA_SECTORS.has(stock.sector) || EBITDA_SUBINDUSTRIES.has(stock.subIndustry);
+}
+
+export function presentRatios(stock, ratios) {
+  const row = { ...EMPTY, ...(ratios ?? {}) };
+  if (!usesEbitda(stock)) row.ebitda = null;
+  return row;
+}
 
 function parseArgs(argv) {
   const symbols = [];
@@ -30,7 +50,7 @@ async function mapPool(items, limit, fn) {
 }
 
 export function countRatios(stocks) {
-  const available = { roe: 0, roa: 0, roic: 0, debtToEquity: 0 };
+  const available = { roe: 0, roa: 0, roic: 0, debtToEquity: 0, ebitda: 0 };
   for (const row of Object.values(stocks)) {
     for (const key of Object.keys(available)) {
       if (row?.[key] != null) available[key] += 1;
@@ -65,17 +85,18 @@ export async function buildRatios(stocks) {
     }
   });
 
+  const stockBySymbol = new Map(stocks.map((stock) => [stock.symbol, stock]));
   const bySymbol = {};
   for (const [group, ratios] of computed) {
-    for (const symbol of group.symbols) bySymbol[symbol] = ratios ?? { ...EMPTY };
+    for (const symbol of group.symbols) bySymbol[symbol] = presentRatios(stockBySymbol.get(symbol), ratios);
   }
   for (const stock of stocks) {
-    if (!bySymbol[stock.symbol]) bySymbol[stock.symbol] = { ...EMPTY };
+    if (!bySymbol[stock.symbol]) bySymbol[stock.symbol] = presentRatios(stock, null);
   }
 
   const available = countRatios(bySymbol);
   console.log(
-    `Ratios for ${stocks.length} stocks in ${Math.round((Date.now() - started) / 1000)}s: ROE ${available.roe}, ROA ${available.roa}, ROIC ${available.roic}, D/E ${available.debtToEquity}`,
+    `Ratios for ${stocks.length} stocks in ${Math.round((Date.now() - started) / 1000)}s: ROE ${available.roe}, ROA ${available.roa}, ROIC ${available.roic}, D/E ${available.debtToEquity}, EBITDA ${available.ebitda}`,
   );
   return {
     computedAt: new Date().toISOString(),
@@ -95,7 +116,7 @@ async function main() {
     for (const symbol of symbols) {
       const row = snapshot.stocks[symbol];
       console.log(
-        `${symbol} ${row.fiscalYearEnd ?? "no filing"} ROE ${row.roe ?? "n/a"} ROA ${row.roa ?? "n/a"} ROIC ${row.roic ?? "n/a"} D/E ${row.debtToEquity ?? "n/a"}`,
+        `${symbol} ${row.fiscalYearEnd ?? "no filing"} ROE ${row.roe ?? "n/a"} ROA ${row.roa ?? "n/a"} ROIC ${row.roic ?? "n/a"} D/E ${row.debtToEquity ?? "n/a"} EBITDA ${row.ebitda ?? "n/a"}`,
       );
     }
     if (symbols.length < constituents.length) return;

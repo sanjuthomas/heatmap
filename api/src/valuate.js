@@ -1,7 +1,7 @@
 import { loadConstituents } from "./constituents.js";
 import { peerValuations, perShareMetric, selectModel, valueCompany } from "./models.js";
 import { fetchQuotes } from "./quotes.js";
-import { countRatios } from "./ratios.js";
+import { countRatios, presentRatios } from "./ratios.js";
 import { saveRatios } from "./ratiosStore.js";
 import { fetchCompanyFacts, fundamentalsFromFacts, ratiosFromFacts } from "./sec.js";
 import { saveValuation } from "./valuationStore.js";
@@ -120,7 +120,7 @@ export async function buildValuation(stocks) {
           };
       const adjusted = withPriceCheck(usedFilingShares ? withShareClass(symbol, result) : result, quote?.price);
       bySymbol[symbol] = adjusted;
-      ratiosBySymbol[symbol] = ratios ?? { fiscalYearEnd: null, roe: null, roa: null, roic: null, debtToEquity: null };
+      ratiosBySymbol[symbol] = presentRatios(stock, ratios);
       if (adjusted.status === "ok") ok += 1;
       const metric = fundamentals ? perShareMetric(group.model, { ...fundamentals, shares }) : null;
       if (metric && quote?.price > 0 && stock) {
@@ -146,7 +146,7 @@ export async function buildValuation(stocks) {
   }
   for (const stock of stocks) {
     if (!ratiosBySymbol[stock.symbol]) {
-      ratiosBySymbol[stock.symbol] = { fiscalYearEnd: null, roe: null, roa: null, roic: null, debtToEquity: null };
+      ratiosBySymbol[stock.symbol] = presentRatios(stock, null);
     }
     if (bySymbol[stock.symbol]) continue;
     bySymbol[stock.symbol] = {
@@ -166,7 +166,7 @@ export async function buildValuation(stocks) {
     `Valuation ${ok}/${stocks.length} cash-flow values, ${multipleCount} peer multiples, in ${Math.round((Date.now() - started) / 1000)}s`,
   );
   console.log(
-    `Ratios: ROE ${available.roe}, ROA ${available.roa}, ROIC ${available.roic}, D/E ${available.debtToEquity}`,
+    `Ratios: ROE ${available.roe}, ROA ${available.roa}, ROIC ${available.roic}, D/E ${available.debtToEquity}, EBITDA ${available.ebitda}`,
   );
   return {
     computedAt: new Date().toISOString(),

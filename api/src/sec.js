@@ -263,7 +263,7 @@ function effectiveTaxRate(facts, end) {
 
 export function ratiosFromFacts(facts) {
   const fiscalYearEnd = latestFiscalYearEnd(facts);
-  const empty = { fiscalYearEnd, roe: null, roa: null, roic: null, debtToEquity: null };
+  const empty = { fiscalYearEnd, roe: null, roa: null, roic: null, debtToEquity: null, ebitda: null };
   if (!fiscalYearEnd) return empty;
 
   const priorEnd = priorFiscalYearEnd(facts, fiscalYearEnd);
@@ -285,7 +285,42 @@ export function ratiosFromFacts(facts) {
     roa: assets > 0 ? ratioOf(netIncome, averageBalance(assets, priorAssets)) : null,
     roic: ratioOf(nopat, capital),
     debtToEquity: ratioOf(debt, equity),
+    ebitda: ebitdaOn(facts, fiscalYearEnd),
   };
+}
+
+const EBITDA_DEPRECIATION = [...DEPRECIATION, "DepreciationAmortizationAndAccretionNet"];
+const EBITDA_INTEREST = ["InterestExpense", "InterestExpenseNonoperating", "InterestAndDebtExpense"];
+const EBITDA_INVENTORY_INTEREST = ["RealEstateInventoryCapitalizedInterestCostsCostOfSales1"];
+
+function ebitdaOn(facts, end) {
+  const depreciation = valueAtEnd(facts, EBITDA_DEPRECIATION, end);
+  if (depreciation == null) return null;
+  const operatingIncome = valueAtEnd(facts, RATIO_OPERATING, end);
+  if (operatingIncome != null) {
+    const ebitda = operatingIncome + Math.abs(depreciation);
+    return Number.isFinite(ebitda) ? round(ebitda, 0) : null;
+  }
+  // Homebuilders and a few other filers never tag operating income. Pretax is after interest.
+  const pretax = pretaxIncome(facts, end);
+  if (pretax == null) return null;
+  const ebitda = pretax + interestExpensed(facts, end) + Math.abs(depreciation);
+  return Number.isFinite(ebitda) ? round(ebitda, 0) : null;
+}
+
+function pretaxIncome(facts, end) {
+  const combined = valueAtEnd(facts, RATIO_PRETAX, end);
+  if (combined != null) return combined;
+  const domestic = valueAtEnd(facts, ["IncomeLossFromContinuingOperationsBeforeIncomeTaxesDomestic"], end);
+  const foreign = valueAtEnd(facts, ["IncomeLossFromContinuingOperationsBeforeIncomeTaxesForeign"], end);
+  if (domestic == null && foreign == null) return null;
+  return (domestic ?? 0) + (foreign ?? 0);
+}
+
+function interestExpensed(facts, end) {
+  const direct = valueAtEnd(facts, EBITDA_INTEREST, end) ?? 0;
+  const inInventory = valueAtEnd(facts, EBITDA_INVENTORY_INTEREST, end) ?? 0;
+  return Math.abs(direct) + Math.abs(inInventory);
 }
 
 export async function fetchCompanyFacts(cik) {

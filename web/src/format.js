@@ -43,14 +43,28 @@ export function formatDebtToEquity(value) {
   return value.toFixed(2);
 }
 
+export function formatEbitda(value) {
+  if (value == null || Number.isNaN(value)) return "—";
+  const absolute = Math.abs(value);
+  const sign = value < 0 ? "-" : "";
+  if (absolute >= 1e12) return `${sign}$${(absolute / 1e12).toFixed(2)}T`;
+  if (absolute >= 1e9) return `${sign}$${(absolute / 1e9).toFixed(2)}B`;
+  if (absolute >= 1e6) return `${sign}$${(absolute / 1e6).toFixed(0)}M`;
+  return formatPrice(value);
+}
+
 export function ratiosHtml(ratios) {
   if (!ratios) return "";
   const filed = ratios.fiscalYearEnd ? ` · year ended ${formatDate(ratios.fiscalYearEnd)}` : "";
+  const ebitda = ratios.ebitda == null
+    ? ""
+    : `<div class="wide"><dt>EBITDA</dt><dd>${formatEbitda(ratios.ebitda)}</dd></div>`;
   return `<dl class="tip-ratios">
     <div><dt>ROE</dt><dd>${formatRatioPercent(ratios.roe)}</dd></div>
     <div><dt>ROA</dt><dd>${formatRatioPercent(ratios.roa)}</dd></div>
     <div><dt>ROIC</dt><dd>${formatRatioPercent(ratios.roic)}</dd></div>
     <div><dt>D/E</dt><dd>${formatDebtToEquity(ratios.debtToEquity)}</dd></div>
+    ${ebitda}
   </dl>
   <p class="tip-extra">Annual ratios${filed}</p>`;
 }

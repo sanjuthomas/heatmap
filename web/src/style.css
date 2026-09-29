@@ -456,6 +456,19 @@ table.ratings .ticker { font-weight: 600; }
 table.ratings .up { color: var(--up); }
 table.ratings .down { color: var(--down); }
 .sheet-status { margin-top: 18px; color: var(--muted); }
+.industry-block { margin-top: 28px; }
+.industry-block h2 {
+  margin: 0 0 10px;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+}
+.industry-block h2 span {
+  margin-left: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+.industry-block .table-scroll { margin-top: 0; }
 
 @media (max-width: 860px) {
   header {

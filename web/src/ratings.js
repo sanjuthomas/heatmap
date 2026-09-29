@@ -1,4 +1,5 @@
 import { formatDate, formatDebtToEquity, formatEbitda, formatPrice, formatRatioPercent, formatWeight } from "./format.js";
+import { industryOf } from "./industries.js";
 
 const STORAGE_KEY = "heatmap.apiBase";
 const COST_OF_EQUITY = 0.09;
@@ -109,92 +110,84 @@ function identityCells(stock, index) {
   ].join("");
 }
 
-function renderFinance(stocks) {
-  const rows = stocks.map((stock, index) => {
-    const excess = excessReturn(stock);
-    const excessClass = excess == null ? "" : excess > 0 ? "up" : excess < 0 ? "down" : "";
-    return `<tr>
-      ${identityCells(stock, index)}
-      ${cell(formatRatioPercent(stock.ratios?.roe))}
-      ${cell(formatExcess(excess), excessClass)}
-      ${cell(formatRatioPercent(stock.ratios?.roa))}
-      ${cell(formatRatioPercent(stock.ratios?.roic))}
-      ${cell(formatDebtToEquity(stock.ratios?.debtToEquity))}
-      ${cell(stock.valuation?.status === "ok" ? formatPrice(stock.valuation.fairValue) : "—")}
-      ${cell(stock.valuation?.multipleFairValue != null ? formatPrice(stock.valuation.multipleFairValue) : "—")}
-      ${cell(formatWeight(stock.weight))}
-      ${cell(escapeHtml(stock.ratios?.fiscalYearEnd ? formatDate(stock.ratios.fiscalYearEnd) : "—"))}
-    </tr>`;
-  });
+const FINANCE_HEAD = `<th>Rank</th><th class="ticker">Ticker</th><th class="name">Company</th><th class="name">Sub-industry</th><th>Price</th><th>ROE</th><th>Excess ROE</th><th>ROA</th><th>ROIC</th><th>D/E</th><th>Fair value</th><th>Peer value</th><th>Weight</th><th>Filed</th>`;
+const EBITDA_HEAD = `<th>Rank</th><th class="ticker">Ticker</th><th class="name">Company</th><th class="name">Sub-industry</th><th>Price</th><th>EBITDA margin</th><th>EBITDA</th><th>ROE</th><th>ROA</th><th>ROIC</th><th>D/E</th><th>Fair value</th><th>Peer value</th><th>Weight</th><th>Filed</th>`;
+
+function groupsFor(stocks, scoreOf) {
+  const groups = new Map();
+  for (const stock of stocks) {
+    const industry = industryOf(stock.subIndustry);
+    const list = groups.get(industry) ?? [];
+    list.push(stock);
+    groups.set(industry, list);
+  }
+  return [...groups.entries()]
+    .sort((left, right) => left[0].localeCompare(right[0]))
+    .map(([industry, list]) => [industry, sortByScore(list, scoreOf)]);
+}
+
+function renderGroups(groups, headerHtml, rowHtml) {
   table.hidden = false;
-  table.innerHTML = `<table class="ratings">
-    <thead>
-      <tr>
-        <th>Rank</th>
-        <th class="ticker">Ticker</th>
-        <th class="name">Company</th>
-        <th class="name">Sub-industry</th>
-        <th>Price</th>
-        <th>ROE</th>
-        <th>Excess ROE</th>
-        <th>ROA</th>
-        <th>ROIC</th>
-        <th>D/E</th>
-        <th>Fair value</th>
-        <th>Peer value</th>
-        <th>Weight</th>
-        <th>Filed</th>
-      </tr>
-    </thead>
-    <tbody>${rows.join("")}</tbody>
-  </table>`;
+  table.innerHTML = groups.map(([industry, stocks]) => `<section class="industry-block">
+      <h2>${escapeHtml(industry)} <span>${stocks.length}</span></h2>
+      <div class="table-scroll"><table class="ratings">
+        <thead><tr>${headerHtml}</tr></thead>
+        <tbody>${stocks.map((stock, index) => rowHtml(stock, index)).join("")}</tbody>
+      </table></div>
+    </section>`).join("");
+}
+
+function financeRow(stock, index) {
+  const excess = excessReturn(stock);
+  const excessClass = excess == null ? "" : excess > 0 ? "up" : excess < 0 ? "down" : "";
+  return `<tr>
+    ${identityCells(stock, index)}
+    ${cell(formatRatioPercent(stock.ratios?.roe))}
+    ${cell(formatExcess(excess), excessClass)}
+    ${cell(formatRatioPercent(stock.ratios?.roa))}
+    ${cell(formatRatioPercent(stock.ratios?.roic))}
+    ${cell(formatDebtToEquity(stock.ratios?.debtToEquity))}
+    ${cell(stock.valuation?.status === "ok" ? formatPrice(stock.valuation.fairValue) : "—")}
+    ${cell(stock.valuation?.multipleFairValue != null ? formatPrice(stock.valuation.multipleFairValue) : "—")}
+    ${cell(formatWeight(stock.weight))}
+    ${cell(escapeHtml(stock.ratios?.fiscalYearEnd ? formatDate(stock.ratios.fiscalYearEnd) : "—"))}
+  </tr>`;
+}
+
+function renderFinance(stocks) {
+  const groups = groupsFor(stocks, excessReturn);
+  renderGroups(groups, FINANCE_HEAD, financeRow);
   const ranked = stocks.filter((stock) => excessReturn(stock) != null).length;
-  status.textContent = `${stocks.length} financial stocks. ${ranked} have a return on equity. Cost of equity is 9%.`;
+  if (note) note.textContent = "Grouped by industry. Inside each industry, ranked by return on equity minus a 9% cost of equity.";
+  status.textContent = `${stocks.length} financial stocks in ${groups.length} industries. ${ranked} have a return on equity. Cost of equity is 9%.`;
+}
+
+function ebitdaRow(stock, index) {
+  const margin = stock.ratios?.ebitdaMargin;
+  const marginClass = margin == null ? "" : margin > 0 ? "up" : margin < 0 ? "down" : "";
+  return `<tr>
+    ${identityCells(stock, index)}
+    ${cell(formatRatioPercent(margin), marginClass)}
+    ${cell(formatEbitda(stock.ratios?.ebitda))}
+    ${sharedCells(stock)}
+  </tr>`;
 }
 
 function renderEbitda(stocks, rankedOnMargin) {
-  const rows = stocks.map((stock, index) => {
-    const margin = stock.ratios?.ebitdaMargin;
-    const marginClass = margin == null ? "" : margin > 0 ? "up" : margin < 0 ? "down" : "";
-    return `<tr>
-      ${identityCells(stock, index)}
-      ${cell(formatRatioPercent(margin), marginClass)}
-      ${cell(formatEbitda(stock.ratios?.ebitda))}
-      ${sharedCells(stock)}
-    </tr>`;
-  });
-  table.hidden = false;
-  table.innerHTML = `<table class="ratings">
-    <thead>
-      <tr>
-        <th>Rank</th>
-        <th class="ticker">Ticker</th>
-        <th class="name">Company</th>
-        <th class="name">Sub-industry</th>
-        <th>Price</th>
-        <th>EBITDA margin</th>
-        <th>EBITDA</th>
-        <th>ROE</th>
-        <th>ROA</th>
-        <th>ROIC</th>
-        <th>D/E</th>
-        <th>Fair value</th>
-        <th>Peer value</th>
-        <th>Weight</th>
-        <th>Filed</th>
-      </tr>
-    </thead>
-    <tbody>${rows.join("")}</tbody>
-  </table>`;
+  const scoreOf = rankedOnMargin
+    ? (stock) => (stock.ratios?.ebitdaMargin == null || Number.isNaN(stock.ratios.ebitdaMargin) ? null : stock.ratios.ebitdaMargin)
+    : (stock) => (stock.ratios?.ebitda == null || Number.isNaN(stock.ratios.ebitda) ? null : stock.ratios.ebitda);
+  const groups = groupsFor(stocks, scoreOf);
+  renderGroups(groups, EBITDA_HEAD, ebitdaRow);
   const withEbitda = stocks.filter((stock) => stock.ratios?.ebitda != null).length;
   const withMargin = stocks.filter((stock) => stock.ratios?.ebitdaMargin != null).length;
   const label = MODE === "utilities" ? "utility" : MODE === "durables" ? "consumer-durable" : "industrial";
   if (rankedOnMargin) {
-    if (note) note.textContent = "Ranked by EBITDA margin. The top row keeps the largest share of revenue as EBITDA.";
-    status.textContent = `${stocks.length} ${label} stocks. ${withMargin} have an EBITDA margin.`;
+    if (note) note.textContent = "Grouped by industry. Inside each industry, ranked by EBITDA margin.";
+    status.textContent = `${stocks.length} ${label} stocks in ${groups.length} industries. ${withMargin} have an EBITDA margin.`;
   } else {
-    if (note) note.textContent = "Ranked by annual EBITDA. The top row produced the most EBITDA.";
-    status.textContent = `${stocks.length} ${label} stocks. ${withEbitda} have EBITDA.`;
+    if (note) note.textContent = "Grouped by industry. Inside each industry, ranked by annual EBITDA.";
+    status.textContent = `${stocks.length} ${label} stocks in ${groups.length} industries. ${withEbitda} have EBITDA.`;
   }
 }
 
@@ -211,10 +204,7 @@ async function start() {
       return;
     }
     const rankedOnMargin = stocks.some((stock) => stock.ratios?.ebitdaMargin != null);
-    const scoreOf = rankedOnMargin
-      ? (stock) => (stock.ratios?.ebitdaMargin == null || Number.isNaN(stock.ratios.ebitdaMargin) ? null : stock.ratios.ebitdaMargin)
-      : (stock) => (stock.ratios?.ebitda == null || Number.isNaN(stock.ratios.ebitda) ? null : stock.ratios.ebitda);
-    renderEbitda(sortByScore(stocks, scoreOf), rankedOnMargin);
+    renderEbitda(stocks, rankedOnMargin);
   } catch (error) {
     status.textContent = error.message;
   }

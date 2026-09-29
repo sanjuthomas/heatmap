@@ -33,6 +33,28 @@ export function formatPrice(value) {
   });
 }
 
+export function formatRatioPercent(value) {
+  if (value == null || Number.isNaN(value)) return "—";
+  return `${(value * 100).toFixed(1)}%`;
+}
+
+export function formatDebtToEquity(value) {
+  if (value == null || Number.isNaN(value)) return "—";
+  return value.toFixed(2);
+}
+
+export function ratiosHtml(ratios) {
+  if (!ratios) return "";
+  const filed = ratios.fiscalYearEnd ? ` · year ended ${formatDate(ratios.fiscalYearEnd)}` : "";
+  return `<dl class="tip-ratios">
+    <div><dt>ROE</dt><dd>${formatRatioPercent(ratios.roe)}</dd></div>
+    <div><dt>ROA</dt><dd>${formatRatioPercent(ratios.roa)}</dd></div>
+    <div><dt>ROIC</dt><dd>${formatRatioPercent(ratios.roic)}</dd></div>
+    <div><dt>D/E</dt><dd>${formatDebtToEquity(ratios.debtToEquity)}</dd></div>
+  </dl>
+  <p class="tip-extra">Annual ratios${filed}</p>`;
+}
+
 export function formatWeight(value) {
   if (value == null || Number.isNaN(value)) return "—";
   return `${value.toFixed(2)}%`;

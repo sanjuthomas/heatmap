@@ -2,6 +2,7 @@ import { loadConstituents } from "./constituents.js";
 import { LOOKBACKS, loadHistory } from "./history.js";
 import { fetchQuotes } from "./quotes.js";
 import { round } from "./util.js";
+import { loadRatios } from "./ratiosStore.js";
 import { loadValuation, valuationFor } from "./valuationStore.js";
 import { loadWeights } from "./weights.js";
 
@@ -43,11 +44,12 @@ function moveFrom(price, close, date) {
 export async function buildHeatmap() {
   const constituents = await loadConstituents();
   const symbols = constituents.map((stock) => stock.symbol);
-  const [weightBook, history, quotes, valuation] = await Promise.all([
+  const [weightBook, history, quotes, valuation, ratios] = await Promise.all([
     loadWeights(),
     loadHistory([...symbols, BENCHMARK]),
     fetchQuotes([...symbols, BENCHMARK]),
     loadValuation(),
+    loadRatios(),
   ]);
 
   function periodsFor(symbol) {
@@ -83,6 +85,7 @@ export async function buildHeatmap() {
       session: quote?.session ?? null,
       periods,
       valuation: valuationFor(valuation, stock.symbol),
+      ratios: ratios?.stocks?.[stock.symbol] ?? null,
     };
   });
 

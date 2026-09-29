@@ -352,6 +352,30 @@ input:focus, select:focus, button:focus {
 }
 .tip-fair .up { color: var(--up); }
 .tip-fair .down { color: var(--down); }
+.tip-ratios {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 16px;
+  margin: 8px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid #2d3542;
+}
+.tip-ratios div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.tip-ratios dt {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+.tip-ratios dd {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
 
 @media (max-width: 860px) {
   header {

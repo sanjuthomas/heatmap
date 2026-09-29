@@ -1,5 +1,5 @@
 import { renderHeatmap } from "./heatmap.js";
-import { formatClock, formatDate, formatPercent, formatPrice, formatWeight, statusLabel } from "./format.js";
+import { formatClock, formatDate, formatPercent, formatPrice, formatWeight, ratiosHtml, statusLabel } from "./format.js";
 
 const STORAGE_KEY = "heatmap.apiBase";
 const REFRESH_MS = 5 * 60 * 1000;
@@ -267,7 +267,8 @@ function showTooltip(stock, x, y) {
     <p class="tip-extra">${referenceName} ${formatPrice(referencePrice)}${referenceDate}</p>
     ${afterHours}
     <p class="tip-extra">Index weight ${formatWeight(stock.weight)}</p>
-    ${fairValueHtml(stock)}`;
+    ${fairValueHtml(stock)}
+    ${ratiosHtml(stock.ratios)}`;
   const rect = tooltip.getBoundingClientRect();
   const pad = 12;
   let left = x + 16;

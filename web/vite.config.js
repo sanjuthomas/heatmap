@@ -9,6 +9,8 @@ export default defineConfig({
         main: resolve("index.html"),
         heatmap: resolve("heatmap/index.html"),
         valuemap: resolve("valuemap/index.html"),
+        ratings: resolve("ratings/index.html"),
+        financials: resolve("ratings/financials/index.html"),
       },
     },
   },

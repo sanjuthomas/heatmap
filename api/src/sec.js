@@ -120,10 +120,26 @@ function debtOn(facts, end) {
   const current = valueAtEnd(facts, LONG_TERM_CURRENT, end);
   const shortTerm = valueAtEnd(facts, SHORT_DEBT, end) ?? 0;
   const paper = valueAtEnd(facts, COMMERCIAL_PAPER, end) ?? 0;
-  if (noncurrent != null || current != null) return (noncurrent ?? 0) + (current ?? 0) + shortTerm + paper;
+  const inclusive = valueAtEnd(facts, RATIO_LONG_TERM_TOTAL, end);
+  // The current-maturity tag is only the portion due within a year. It is not total debt.
+  if (noncurrent != null) return noncurrent + (current ?? 0) + shortTerm + paper;
+  if (inclusive != null && (longTerm == null || (inclusive >= longTerm * 0.95 && inclusive <= longTerm * 1.25))) {
+    return inclusive + shortTerm + paper;
+  }
   if (longTerm != null) return longTerm + shortTerm + paper;
-  if (shortTerm || paper) return shortTerm + paper;
+  if (inclusive != null) return inclusive + shortTerm + paper;
+  if (current != null || shortTerm || paper) return (current ?? 0) + shortTerm + paper;
   return null;
+}
+
+function stockholdersEquity(facts, end) {
+  const parent = valueAtEnd(facts, ["StockholdersEquity", "EquityAttributableToOwnersOfParent"], end);
+  if (parent != null) return parent;
+  const inclusive = valueAtEnd(facts, ["StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest"], end);
+  if (inclusive == null) return null;
+  const minority = valueAtEnd(facts, ["MinorityInterest", "StockholdersEquityAttributableToNoncontrollingInterest"], end) ?? 0;
+  const equity = inclusive - minority;
+  return equity > 0 ? equity : null;
 }
 
 function usableHistory(values) {
@@ -230,7 +246,7 @@ function ratioDebt(facts, end) {
 }
 
 function investedCapital(facts, end) {
-  const equity = valueAtEnd(facts, RATIO_EQUITY, end);
+  const equity = stockholdersEquity(facts, end);
   const debt = ratioDebt(facts, end);
   if (!(equity > 0) || debt == null) return null;
   const cash = valueAtEnd(facts, RATIO_CASH, end) ?? 0;
@@ -252,8 +268,8 @@ export function ratiosFromFacts(facts) {
 
   const priorEnd = priorFiscalYearEnd(facts, fiscalYearEnd);
   const netIncome = valueAtEnd(facts, RATIO_NET_INCOME, fiscalYearEnd);
-  const equity = valueAtEnd(facts, RATIO_EQUITY, fiscalYearEnd);
-  const priorEquity = priorEnd ? valueAtEnd(facts, RATIO_EQUITY, priorEnd) : null;
+  const equity = stockholdersEquity(facts, fiscalYearEnd);
+  const priorEquity = priorEnd ? stockholdersEquity(facts, priorEnd) : null;
   const assets = valueAtEnd(facts, RATIO_ASSETS, fiscalYearEnd);
   const priorAssets = priorEnd ? valueAtEnd(facts, RATIO_ASSETS, priorEnd) : null;
   const debt = ratioDebt(facts, fiscalYearEnd);

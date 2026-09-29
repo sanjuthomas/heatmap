@@ -77,6 +77,19 @@ test("uses the inclusive long-term debt total when the usual debt tags are absen
   assert.equal(ratios.debtToEquity, 1);
 });
 
+test("current maturities are not treated as total debt", () => {
+  const ratios = ratiosFromFacts(factsFrom({
+    NetIncomeLoss: [filing("2025-12-31", 21.9, { start: "2025-01-01" })],
+    StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest: [filing("2025-12-31", 126.49)],
+    MinorityInterest: [filing("2025-12-31", 15.96)],
+    Assets: [filing("2025-12-31", 420.2)],
+    LongTermDebt: [filing("2025-12-31", 134.72)],
+    DebtCurrent: [filing("2025-12-31", 9.01)],
+    LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities: [filing("2025-12-31", 136.1)],
+  }));
+  assert.equal(ratios.debtToEquity, 1.2313);
+});
+
 test("does not add the inclusive debt total on top of standard long-term debt", () => {
   const ratios = ratiosFromFacts(factsFrom({
     NetIncomeLoss: [filing("2024-12-31", 20, { start: "2024-01-01" })],

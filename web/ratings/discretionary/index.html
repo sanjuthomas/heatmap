@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Consumer discretionary ratings</title>
+    <meta name="description" content="S&P 500 Consumer Discretionary stocks grouped by industry and ranked by return on equity against a 9% cost of equity." />
+    <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../../src/style.css" />
+  </head>
+  <body class="sheet" data-rating="return" data-sector="Consumer Discretionary">
+    <main class="sheet">
+      <p class="sheet-kicker"><a href="../../">Markets</a> · <a href="../">Ratings</a></p>
+      <h1>Consumer Discretionary</h1>
+      <p class="sheet-note" id="note">Grouped by industry. Inside each industry, ranked by return on equity minus a 9% cost of equity.</p>
+      <p class="sheet-status" id="status">Loading consumer discretionary stocks…</p>
+      <div id="table" hidden></div>
+    </main>
+    <script type="module" src="../../src/ratings.js"></script>
+  </body>
+</html>

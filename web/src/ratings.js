@@ -4,6 +4,7 @@ import { industryOf } from "./industries.js";
 const STORAGE_KEY = "heatmap.apiBase";
 const COST_OF_EQUITY = 0.09;
 const MODE = document.body.dataset.rating || "finance";
+const SECTOR = document.body.dataset.sector || "";
 const DURABLES = new Set([
   "Automobile Manufacturers",
   "Automotive Parts & Equipment",
@@ -43,6 +44,7 @@ function includeStock(stock) {
   if (MODE === "industrials") return stock.sector === "Industrials";
   if (MODE === "utilities") return stock.sector === "Utilities";
   if (MODE === "durables") return DURABLES.has(stock.subIndustry);
+  if (MODE === "return") return stock.sector === SECTOR;
   return stock.sector === "Financials";
 }
 
@@ -158,8 +160,13 @@ function renderFinance(stocks) {
   const groups = groupsFor(stocks, excessReturn);
   renderGroups(groups, FINANCE_HEAD, financeRow);
   const ranked = stocks.filter((stock) => excessReturn(stock) != null).length;
-  if (note) note.textContent = "Grouped by industry. Inside each industry, ranked by return on equity minus a 9% cost of equity.";
-  status.textContent = `${stocks.length} financial stocks in ${groups.length} industries. ${ranked} have a return on equity. Cost of equity is 9%.`;
+  const sectorName = SECTOR || "Financials";
+  if (note) {
+    note.textContent = sectorName === "Real Estate"
+      ? "Grouped by industry. Inside each industry, ranked by return on equity minus a 9% cost of equity. Depreciation reduces REIT book equity, so compare a REIT with the others in its industry."
+      : "Grouped by industry. Inside each industry, ranked by return on equity minus a 9% cost of equity.";
+  }
+  status.textContent = `${stocks.length} ${sectorName} stocks in ${groups.length} industries. ${ranked} have a return on equity. Cost of equity is 9%.`;
 }
 
 function ebitdaRow(stock, index) {
@@ -199,8 +206,8 @@ async function start() {
     const data = await response.json();
     if (!Array.isArray(data.stocks)) throw new Error("The quote service returned an unexpected response.");
     const stocks = data.stocks.filter(includeStock);
-    if (MODE === "finance") {
-      renderFinance(sortByScore(stocks, excessReturn));
+    if (MODE === "finance" || MODE === "return") {
+      renderFinance(stocks);
       return;
     }
     const rankedOnMargin = stocks.some((stock) => stock.ratios?.ebitdaMargin != null);

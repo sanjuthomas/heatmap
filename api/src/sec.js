@@ -263,7 +263,7 @@ function effectiveTaxRate(facts, end) {
 
 export function ratiosFromFacts(facts) {
   const fiscalYearEnd = latestFiscalYearEnd(facts);
-  const empty = { fiscalYearEnd, roe: null, roa: null, roic: null, debtToEquity: null, ebitda: null };
+  const empty = { fiscalYearEnd, roe: null, roa: null, roic: null, debtToEquity: null, ebitda: null, ebitdaMargin: null };
   if (!fiscalYearEnd) return empty;
 
   const priorEnd = priorFiscalYearEnd(facts, fiscalYearEnd);
@@ -278,6 +278,7 @@ export function ratiosFromFacts(facts) {
   const taxRate = effectiveTaxRate(facts, fiscalYearEnd);
   const capital = averageBalance(investedCapital(facts, fiscalYearEnd), priorEnd ? investedCapital(facts, priorEnd) : null);
   const nopat = operatingIncome == null || taxRate == null ? null : operatingIncome * (1 - taxRate);
+  const ebitda = ebitdaOn(facts, fiscalYearEnd);
 
   return {
     fiscalYearEnd,
@@ -285,7 +286,8 @@ export function ratiosFromFacts(facts) {
     roa: assets > 0 ? ratioOf(netIncome, averageBalance(assets, priorAssets)) : null,
     roic: ratioOf(nopat, capital),
     debtToEquity: ratioOf(debt, equity),
-    ebitda: ebitdaOn(facts, fiscalYearEnd),
+    ebitda,
+    ebitdaMargin: ebitdaMarginOn(facts, fiscalYearEnd, ebitda),
   };
 }
 
@@ -315,6 +317,30 @@ function pretaxIncome(facts, end) {
   const foreign = valueAtEnd(facts, ["IncomeLossFromContinuingOperationsBeforeIncomeTaxesForeign"], end);
   if (domestic == null && foreign == null) return null;
   return (domestic ?? 0) + (foreign ?? 0);
+}
+
+const EBITDA_REVENUE = [
+  "RevenueFromContractWithCustomerExcludingAssessedTax",
+  "RevenueFromContractWithCustomerIncludingAssessedTax",
+  "Revenues",
+  "SalesRevenueNet",
+  "RegulatedAndUnregulatedOperatingRevenue",
+  "OperatingRevenue",
+];
+
+function revenueOn(facts, end) {
+  const total = valueAtEnd(facts, EBITDA_REVENUE, end);
+  if (total > 0) return total;
+  const goods = valueAtEnd(facts, ["SalesRevenueGoodsNet"], end);
+  const services = valueAtEnd(facts, ["SalesRevenueServicesNet"], end);
+  if (goods == null && services == null) return null;
+  const revenue = (goods ?? 0) + (services ?? 0);
+  return revenue > 0 ? revenue : null;
+}
+
+function ebitdaMarginOn(facts, end, ebitda) {
+  if (ebitda == null) return null;
+  return ratioOf(ebitda, revenueOn(facts, end));
 }
 
 function interestExpensed(facts, end) {

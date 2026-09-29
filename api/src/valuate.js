@@ -166,7 +166,7 @@ export async function buildValuation(stocks) {
     `Valuation ${ok}/${stocks.length} cash-flow values, ${multipleCount} peer multiples, in ${Math.round((Date.now() - started) / 1000)}s`,
   );
   console.log(
-    `Ratios: ROE ${available.roe}, ROA ${available.roa}, ROIC ${available.roic}, D/E ${available.debtToEquity}, EBITDA ${available.ebitda}`,
+    `Ratios: ROE ${available.roe}, ROA ${available.roa}, ROIC ${available.roic}, D/E ${available.debtToEquity}, EBITDA ${available.ebitda}, margin ${available.ebitdaMargin}`,
   );
   return {
     computedAt: new Date().toISOString(),

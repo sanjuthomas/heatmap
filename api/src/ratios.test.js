@@ -50,8 +50,10 @@ test("ebitda adds depreciation back to operating income", () => {
     NetIncomeLoss: [filing("2024-12-31", 80, { start: "2024-01-01" })],
     OperatingIncomeLoss: [filing("2024-12-31", 150, { start: "2024-01-01" })],
     DepreciationDepletionAndAmortization: [filing("2024-12-31", 40, { start: "2024-01-01" })],
+    RevenueFromContractWithCustomerExcludingAssessedTax: [filing("2024-12-31", 1000, { start: "2024-01-01" })],
   }));
   assert.equal(ratios.ebitda, 190);
+  assert.equal(ratios.ebitdaMargin, 0.19);
 });
 
 test("operating income is used ahead of the pretax fallback", () => {
@@ -104,6 +106,7 @@ test("ebitda is kept for industrials, utilities, and consumer durables", () => {
   assert.equal(usesEbitda({ sector: "Consumer Discretionary", subIndustry: "Restaurants" }), false);
   assert.equal(usesEbitda({ sector: "Financials", subIndustry: "Diversified Banks" }), false);
   assert.equal(presentRatios({ sector: "Industrials", subIndustry: "Building Products" }, ratios).ebitda, 190);
+  assert.equal(presentRatios({ sector: "Financials", subIndustry: "Diversified Banks" }, { ...ratios, ebitdaMargin: 0.19 }).ebitdaMargin, null);
   assert.equal(presentRatios({ sector: "Financials", subIndustry: "Diversified Banks" }, ratios).ebitda, null);
   assert.equal(presentRatios({ sector: "Consumer Discretionary", subIndustry: "Restaurants" }, ratios).ebitda, null);
 });

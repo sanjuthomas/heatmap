@@ -2,7 +2,7 @@ import { loadConstituents } from "./constituents.js";
 import { fetchCompanyFacts, ratiosFromFacts } from "./sec.js";
 import { saveRatios } from "./ratiosStore.js";
 
-const EMPTY = { fiscalYearEnd: null, roe: null, roa: null, roic: null, debtToEquity: null, ebitda: null };
+const EMPTY = { fiscalYearEnd: null, roe: null, roa: null, roic: null, debtToEquity: null, ebitda: null, ebitdaMargin: null };
 
 const EBITDA_SECTORS = new Set(["Industrials", "Utilities"]);
 const EBITDA_SUBINDUSTRIES = new Set([
@@ -20,7 +20,10 @@ export function usesEbitda(stock) {
 
 export function presentRatios(stock, ratios) {
   const row = { ...EMPTY, ...(ratios ?? {}) };
-  if (!usesEbitda(stock)) row.ebitda = null;
+  if (!usesEbitda(stock)) {
+    row.ebitda = null;
+    row.ebitdaMargin = null;
+  }
   return row;
 }
 
@@ -50,7 +53,7 @@ async function mapPool(items, limit, fn) {
 }
 
 export function countRatios(stocks) {
-  const available = { roe: 0, roa: 0, roic: 0, debtToEquity: 0, ebitda: 0 };
+  const available = { roe: 0, roa: 0, roic: 0, debtToEquity: 0, ebitda: 0, ebitdaMargin: 0 };
   for (const row of Object.values(stocks)) {
     for (const key of Object.keys(available)) {
       if (row?.[key] != null) available[key] += 1;
@@ -116,7 +119,7 @@ async function main() {
     for (const symbol of symbols) {
       const row = snapshot.stocks[symbol];
       console.log(
-        `${symbol} ${row.fiscalYearEnd ?? "no filing"} ROE ${row.roe ?? "n/a"} ROA ${row.roa ?? "n/a"} ROIC ${row.roic ?? "n/a"} D/E ${row.debtToEquity ?? "n/a"} EBITDA ${row.ebitda ?? "n/a"}`,
+        `${symbol} ${row.fiscalYearEnd ?? "no filing"} ROE ${row.roe ?? "n/a"} ROA ${row.roa ?? "n/a"} ROIC ${row.roic ?? "n/a"} D/E ${row.debtToEquity ?? "n/a"} EBITDA ${row.ebitda ?? "n/a"} margin ${row.ebitdaMargin ?? "n/a"}`,
       );
     }
     if (symbols.length < constituents.length) return;
